@@ -1,0 +1,6 @@
+{
+  "name": "CodeCast",
+  "description": "Transform codebases into verified, production-quality video tutorials and interactive developer walkthroughs automatically.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
