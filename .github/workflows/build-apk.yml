@@ -52,7 +52,16 @@ jobs:
           java-version: '17'
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        run: |
+          echo "Configuring Android SDK..."
+          echo "ANDROID_HOME: $ANDROID_HOME"
+          SDKMANAGER=$(find $ANDROID_HOME -name sdkmanager -type f 2>/dev/null | head -n 1)
+          if [ -n "$SDKMANAGER" ]; then
+            echo "Found sdkmanager at: $SDKMANAGER"
+            yes | "$SDKMANAGER" --licenses 2>/dev/null || true
+          else
+            echo "No sdkmanager found; Gradle will use android.builder.sdkDownload automatically."
+          fi
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -103,9 +112,15 @@ jobs:
           # Collect all generated APKs
           find app/build/outputs/apk -name "*.apk" -type f | while read -r apk_path; do
             filename=$(basename "$apk_path")
-            cp "$apk_path" "build-apks/CodeCast-${filename}"
+            cp -v "$apk_path" "build-apks/CodeCast-${filename}"
             echo "Saved APK: build-apks/CodeCast-${filename}"
           done
+
+          # Fallback check if path differs
+          if [ -z "$(ls -A build-apks 2>/dev/null)" ]; then
+            echo "Searching all build outputs for APKs..."
+            find . -name "*.apk" -not -path "*/build-apks/*" -exec cp -v {} build-apks/ \;
+          fi
 
           # Output markdown summary table
           echo "### 📱 Android APK Build Summary" >> $GITHUB_STEP_SUMMARY
