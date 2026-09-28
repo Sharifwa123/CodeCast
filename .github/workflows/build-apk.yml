@@ -1,0 +1,142 @@
+name: Build and Release Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build Type (debug or release)'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+          - debug
+          - release
+      create_github_release:
+        description: 'Publish as a permanent GitHub Release with APK attached'
+        required: false
+        default: false
+        type: boolean
+      release_tag:
+        description: 'Release Tag (e.g. v1.0.0, used if triggered manually)'
+        required: false
+        default: 'v1.0.0'
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    name: Build & Package Android APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Prepare Keystore & Environment Secrets
+        run: |
+          echo "Setting up build environment..."
+          # Ensure .env exists so Secrets Gradle Plugin succeeds
+          if [ ! -f .env ]; then
+            echo "Creating .env from .env.example"
+            cp .env.example .env
+          fi
+
+          # Decode debug.keystore from base64 if present, or generate a fresh one
+          if [ -f debug.keystore.base64 ] && [ ! -f debug.keystore ]; then
+            echo "Decoding debug.keystore..."
+            base64 -d debug.keystore.base64 > debug.keystore
+          elif [ ! -f debug.keystore ]; then
+            echo "Generating fallback debug.keystore..."
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+          # Ensure gradlew executable permission
+          chmod +x ./gradlew
+
+      - name: Build Debug APK
+        if: ${{ github.event.inputs.build_type != 'release' }}
+        run: |
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Build Release APK
+        if: ${{ github.event.inputs.build_type == 'release' }}
+        env:
+          KEYSTORE_PATH: ${{ secrets.KEYSTORE_PATH }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -z "$STORE_PASSWORD" ]; then
+            echo "Release signing secrets not set. Building assembleDebug as fallback..."
+            ./gradlew assembleDebug --stacktrace
+          else
+            ./gradlew assembleRelease --stacktrace
+          fi
+
+      - name: Package & Prepare Shareable APKs
+        run: |
+          mkdir -p build-apks
+          # Collect all generated APKs
+          find app/build/outputs/apk -name "*.apk" -type f | while read -r apk_path; do
+            filename=$(basename "$apk_path")
+            cp "$apk_path" "build-apks/CodeCast-${filename}"
+            echo "Saved APK: build-apks/CodeCast-${filename}"
+          done
+
+          # Output markdown summary table
+          echo "### 📱 Android APK Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Artifact Name | Size | SHA256 Checksum |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- | --- |" >> $GITHUB_STEP_SUMMARY
+          for f in build-apks/*.apk; do
+            if [ -f "$f" ]; then
+              fname=$(basename "$f")
+              fsize=$(ls -lh "$f" | awk '{print $5}')
+              fsha=$(sha256sum "$f" | awk '{print $1}')
+              echo "| **$fname** | $fsize | \`$fsha\` |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+      - name: Upload APK as Workflow Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CodeCast-Android-APK
+          path: build-apks/*.apk
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Publish Permanent GitHub Release
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && (github.event.inputs.create_github_release == true || github.event.inputs.create_github_release == 'true')) }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || github.event.inputs.release_tag }}
+          name: CodeCast Release ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || github.event.inputs.release_tag }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: build-apks/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
