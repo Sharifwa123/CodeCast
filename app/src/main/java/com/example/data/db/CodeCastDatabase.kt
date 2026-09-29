@@ -18,7 +18,7 @@ import com.example.data.model.TutorialStepEntity
         GeneratedSceneEntity::class,
         ProjectVersionEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class CodeCastDatabase : RoomDatabase() {

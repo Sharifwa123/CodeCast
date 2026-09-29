@@ -54,10 +54,12 @@ fun VideoPlayerAndEditorView(
     onSelectEditorScene: (GeneratedSceneEntity) -> Unit,
     onUpdateScene: (narration: String, subtitle: String, duration: Int, callout: String) -> Unit,
     onRegenerateScene: (GeneratedSceneEntity) -> Unit,
+    exportProgress: Float? = null,
+    exportedVideoPath: String? = null,
     onExportRequested: (format: String) -> Unit
 ) {
     val activeScene = scenes.getOrNull(currentSceneIndex) ?: scenes.firstOrNull()
-    var stageMode by remember { mutableStateOf("SPLIT") }
+    var stageMode by remember { mutableStateOf("CODE") }
 
     Column(
         modifier = Modifier
@@ -108,9 +110,7 @@ fun VideoPlayerAndEditorView(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         listOf(
-                            Triple("CODE", "Code", Icons.Default.Code),
-                            Triple("SPLIT", "Split", Icons.Default.ViewSidebar),
-                            Triple("UI", "App UI", Icons.Default.LaptopMac)
+                            Triple("CODE", "Code", Icons.Default.Code)
                         ).forEach { (mode, label, icon) ->
                             val isSel = stageMode == mode
                             Surface(
@@ -246,46 +246,12 @@ fun VideoPlayerAndEditorView(
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = "CodeCast • PayFlex",
+                                text = "CodeCast",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White.copy(alpha = 0.7f)
                             )
                         }
-                    }
-
-                    // 2. Cursor Click Indicator Animation
-                    val infiniteTransition = rememberInfiniteTransition(label = "cursor")
-                    val pulseScale by infiniteTransition.animateFloat(
-                        initialValue = 0.8f,
-                        targetValue = 1.3f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(800, easing = FastOutSlowInEasing),
-                            repeatMode = RepeatMode.Reverse
-                        ),
-                        label = "pulse"
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .offset(x = 24.dp, y = (-12).dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .scale(if (isPlaying) pulseScale else 1f)
-                                .clip(CircleShape)
-                                .background(Cyan400.copy(alpha = 0.35f))
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(14.dp)
-                                .align(Alignment.Center)
-                                .clip(CircleShape)
-                                .background(Cyan400)
-                                .border(2.dp, Color.White, CircleShape)
-                        )
                     }
 
                     // 3. Action Callout Banner
@@ -770,13 +736,25 @@ fun VideoPlayerAndEditorView(
             }
         }
 
+        exportedVideoPath?.let { path ->
+            androidx.compose.ui.viewinterop.AndroidView(
+                factory = { ctx ->
+                    android.widget.VideoView(ctx).apply {
+                        setMediaController(android.widget.MediaController(ctx).also { it.setAnchorView(this) })
+                    }
+                },
+                update = { v -> if (v.tag != path) { v.tag = path; v.setVideoPath(path); v.seekTo(1) } },
+                modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).testTag("exported_video_view")
+            )
+        }
+
         // EXPORT & SHARE BUTTONS
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Button(
-                onClick = { onExportRequested("MP4") },
+                onClick = { if (exportProgress == null) onExportRequested("MP4") },
                 colors = ButtonDefaults.buttonColors(containerColor = Indigo600),
                 modifier = Modifier
                     .weight(1f)
@@ -789,7 +767,7 @@ fun VideoPlayerAndEditorView(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Export MP4 (1080p)", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text(if (exportProgress != null) "Rendering ${(exportProgress * 100).toInt()}%" else "Export MP4 (720p)", fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
 
             OutlinedButton(

@@ -32,7 +32,6 @@ fun CodeCastTopBar(
     currentStep: WizardStep,
     projectName: String?,
     activeVersion: String?,
-    onDemoClick: () -> Unit,
     onVersionClick: () -> Unit,
     onExploreCodeClick: (() -> Unit)? = null
 ) {
@@ -168,29 +167,6 @@ fun CodeCastTopBar(
                                 )
                             }
                         }
-                    }
-
-                    OutlinedButton(
-                        onClick = onDemoClick,
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = Indigo500.copy(alpha = 0.12f),
-                            contentColor = Indigo400
-                        ),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(
-                            brush = androidx.compose.ui.graphics.SolidColor(Indigo500.copy(alpha = 0.4f))
-                        ),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                        modifier = Modifier
-                            .defaultMinSize(minHeight = 36.dp)
-                            .testTag("demo_quick_launch_btn")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Bolt,
-                            contentDescription = "Demo",
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = "Try Demo", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

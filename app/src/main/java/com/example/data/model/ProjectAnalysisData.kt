@@ -60,3 +60,26 @@ data class FrameworkInfo(
     val category: String,
     val badgeColorHex: Long
 )
+
+data class RouteInfo(
+    val path: String,
+    val file: String,
+    val line: Int,
+    val kind: String, // "screen" | "api"
+    val method: String = ""
+)
+
+data class ProjectAnalysis(
+    val framework: String,
+    val techStack: List<String>,
+    val routes: List<RouteInfo>,
+    val screenCount: Int,
+    val formCount: Int,
+    val features: List<DetectedFeature>
+) {
+    val workflows: List<DetectedWorkflow> get() = features.flatMap { it.workflows }
+    fun findWorkflow(prefix: String): DetectedWorkflow? = workflows.firstOrNull { it.id.startsWith(prefix) }
+    companion object {
+        val EMPTY = ProjectAnalysis("Unknown", emptyList(), emptyList(), 0, 0, emptyList())
+    }
+}

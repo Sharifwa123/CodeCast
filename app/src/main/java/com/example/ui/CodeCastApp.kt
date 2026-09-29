@@ -23,7 +23,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.data.model.TutorialPlanEntity
 import com.example.data.repository.CodeCastRepository
 import com.example.ui.components.*
 import com.example.ui.screens.*
@@ -100,7 +99,6 @@ fun CodeCastApp(
                     currentStep = state.currentStep,
                     projectName = state.selectedProject?.name,
                     activeVersion = state.selectedProject?.activeVersion,
-                    onDemoClick = { viewModel.loadBuiltInDemo() },
                     onVersionClick = { showVersionDialog = true },
                     onExploreCodeClick = { viewModel.openCodebaseExplorer() }
                 )
@@ -145,7 +143,15 @@ fun CodeCastApp(
                         ) {
                             Icon(imageVector = Icons.Default.Verified, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Quality Check (Passed)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            val report = state.generationProgress.qualityReport
+                            Text(
+                                text = when {
+                                    report == null -> "Quality Check"
+                                    report.isClean -> "Quality Check (Passed)"
+                                    else -> "Quality Check (${report.issues.size} issue${if (report.issues.size == 1) "" else "s"})"
+                                },
+                                fontSize = 12.sp, fontWeight = FontWeight.Bold
+                            )
                         }
 
                         Button(
@@ -189,17 +195,18 @@ fun CodeCastApp(
                             onProjectNameChange = { viewModel.setProjectNameInput(it) },
                             onRepoUrlChange = { viewModel.setRepoUrlInput(it) },
                             onPickZipFile = { zipLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed", "*/*")) },
-                            onSelectSampleZip = { f, fw, cnt, sz -> viewModel.selectSampleZip(f, fw, cnt, sz) },
                             onClearZip = { viewModel.clearUploadedZip() },
                             onExploreCode = { viewModel.openCodebaseExplorer() },
                             onContinueClick = { viewModel.createAndAnalyzeProject(state.repoSourceOption) },
-                            onQuickDemoClick = { viewModel.loadBuiltInDemo() }
+                            isBusy = state.isFetching,
+                            errorMessage = state.ingestError
                         )
                     }
 
                     WizardStep.ANALYZE_APP -> {
                         AnalysisProgressScreen(
                             project = state.selectedProject,
+                            analysis = state.analysis,
                             isAnalyzing = state.isAnalyzing,
                             checklist = state.analysisChecklist,
                             onContinueClick = { viewModel.goToStep(WizardStep.CHOOSE_TUTORIAL) }
@@ -225,7 +232,7 @@ fun CodeCastApp(
 
                     WizardStep.CHOOSE_FEATURE_WORKFLOW -> {
                         FeatureWorkflowScreen(
-                            features = repository.getDiscoveredFeatures(),
+                            features = state.analysis.features,
                             selectedFeatureName = state.selectedFeature,
                             selectedWorkflow = state.selectedWorkflow,
                             onSelectFeature = { viewModel.selectFeature(it) },
@@ -404,15 +411,14 @@ fun CodeCastApp(
                                         viewModel.updateSelectedScene(nar, sub, dur, cal)
                                     },
                                     onRegenerateScene = { viewModel.regenerateSingleScene(it) },
+                                    exportProgress = state.exportProgress,
+                                    exportedVideoPath = state.exportedVideoPath,
                                     onExportRequested = { format ->
                                         when (format) {
-                                            "MP4" -> viewModel.updateSelectedScene(
-                                                state.selectedEditorScene?.narrationScript ?: "",
-                                                state.selectedEditorScene?.subtitleText ?: "",
-                                                state.selectedEditorScene?.durationSeconds ?: 8,
-                                                state.selectedEditorScene?.calloutText ?: ""
-                                            )
-                                            else -> {}
+                                            "MP4" -> viewModel.exportVideo()
+                                            "SRT" -> viewModel.writeSrt()?.let { shareFile(context, it, "application/x-subrip") }
+                                            "SHARE" -> state.exportedVideoPath?.let { shareFile(context, java.io.File(it), "video/mp4") }
+                                                ?: viewModel.exportVideo()
                                         }
                                     }
                                 )
@@ -426,20 +432,14 @@ fun CodeCastApp(
 
     // Quality Report Modal
     if (state.showQualityReportDialog) {
-        val report = state.generationProgress.qualityReport ?: repository.runQualityCheck(
-            state.stepsList,
-            state.activeTutorial ?: TutorialPlanEntity(projectId = 0, title = "Tutorial", tutorialType = "SIGN_UP")
-        )
-        QualityCheckReportDialog(
-            report = report,
-            onDismiss = { viewModel.toggleQualityReportDialog(false) },
-            onFixAutomatically = {
-                viewModel.toggleQualityReportDialog(false)
-            },
-            onContinueAnyway = {
-                viewModel.toggleQualityReportDialog(false)
-            }
-        )
+        state.generationProgress.qualityReport?.let { report ->
+            QualityCheckReportDialog(
+                report = report,
+                onDismiss = { viewModel.toggleQualityReportDialog(false) },
+                onFixAutomatically = { viewModel.toggleQualityReportDialog(false) },
+                onContinueAnyway = { viewModel.toggleQualityReportDialog(false) }
+            )
+        } ?: viewModel.toggleQualityReportDialog(false)
     }
 
     // Versioning Dialog
@@ -459,4 +459,14 @@ fun CodeCastApp(
             onDismiss = { viewModel.closeCodebaseExplorer() }
         )
     }
+}
+
+private fun shareFile(context: android.content.Context, file: java.io.File, mime: String) {
+    val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+        type = mime
+        putExtra(android.content.Intent.EXTRA_STREAM, uri)
+        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(android.content.Intent.createChooser(send, "Share").addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
 }
