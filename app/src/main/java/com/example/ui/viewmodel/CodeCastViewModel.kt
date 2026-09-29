@@ -3,11 +3,19 @@ package com.example.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import android.content.Context
+import android.net.Uri
+import com.example.BuildConfig
+import com.example.ai.GeminiTranslator
+import com.example.analysis.*
 import com.example.data.model.*
 import com.example.data.repository.CodeCastRepository
-import com.example.data.repository.DefaultCodebaseData
+import com.example.media.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import java.io.File
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -49,16 +57,21 @@ data class CodeCastUiState(
 
     // Ingestion state
     val repoSourceOption: String = "ZIP", // "ZIP", "GITHUB", "GITLAB", "BITBUCKET", "DEMO"
-    val projectNameInput: String = "PayFlex SaaS",
-    val repoUrlInput: String = "https://github.com/payflex-hq/payflex-core",
+    val projectNameInput: String = "",
+    val repoUrlInput: String = "",
+    val analysis: ProjectAnalysis = ProjectAnalysis.EMPTY,
+    val isFetching: Boolean = false,
+    val ingestError: String? = null,
+    val exportProgress: Float? = null,
+    val exportedVideoPath: String? = null,
     val isAnalyzing: Boolean = false,
     val analysisChecklist: List<Pair<String, Boolean>> = emptyList(),
 
     // Selection states
     val selectedTutorialType: String = "SIGN_UP",
-    val customPromptInput: String = "Show customers how to download their invoice.",
+    val customPromptInput: String = "",
     val customWorkflowInferred: DetectedWorkflow? = null,
-    val selectedFeature: String = "Authentication",
+    val selectedFeature: String = "",
     val selectedWorkflow: DetectedWorkflow? = null,
     val audience: String = "New users",
     val experienceLevel: String = "Beginner",
@@ -72,7 +85,7 @@ data class CodeCastUiState(
     val speakingStyle: String = "Professional",
     val speakingSpeed: Float = 1.0f,
     val narrationLang: String = "English",
-    val subtitleLang: String = "Twi",
+    val subtitleLang: String = "English",
     val customTerminology: String = "SHARIF AI, SHARIF TECHNOLOGIES, Paystack",
     val hasSubtitles: Boolean = true,
     val subtitleStyle: String = "Professional",
@@ -86,7 +99,7 @@ data class CodeCastUiState(
     val illustrationAnimation: String = "Subtle",
     val backgroundMusic: String = "Subtle",
     val musicVolume: Float = 0.25f,
-    val brandLogoName: String = "PayFlex Logo",
+    val brandLogoName: String = "",
     val watermarkOption: String = "Logo",
 
     // Uploaded ZIP archive state
@@ -101,7 +114,7 @@ data class CodeCastUiState(
     val extractedCodeFiles: List<CodebaseFile> = emptyList(),
     val selectedCodeFile: CodebaseFile? = null,
     val showCodebaseExplorer: Boolean = false,
-    val videoStageViewMode: String = "SPLIT", // "CODE", "SPLIT", "UI"
+    val videoStageViewMode: String = "CODE",
 
     // Virtual Presenter Clone & Deepfake Voice State
     val presenterFaceUri: String? = null,
@@ -135,7 +148,8 @@ data class CodeCastUiState(
 )
 
 class CodeCastViewModel(
-    private val repository: CodeCastRepository
+    private val repository: CodeCastRepository,
+    private val appContext: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CodeCastUiState())
@@ -149,38 +163,13 @@ class CodeCastViewModel(
     }
 
     private fun loadInitialData() {
-        _uiState.update { it.copy(extractedCodeFiles = DefaultCodebaseData.getDefaultCodebase()) }
         viewModelScope.launch {
-            repository.allProjects.collectLatest { list ->
-                _uiState.update { it.copy(projects = list) }
-                if (_uiState.value.selectedProject == null && list.isNotEmpty()) {
-                    selectProject(list.first())
-                }
-            }
-        }
-    }
-
-    fun loadBuiltInDemo() {
-        viewModelScope.launch {
-            val projectId = repository.ensureDemoProjectLoaded()
-            val project = repository.getProject(projectId)
-            if (project != null) {
-                _uiState.update {
-                    it.copy(
-                        selectedProject = project,
-                        repoSourceOption = "DEMO",
-                        projectNameInput = project.name,
-                        extractedCodeFiles = DefaultCodebaseData.getDefaultCodebase(),
-                        currentStep = WizardStep.ANALYZE_APP
-                    )
-                }
-                runAnalysisPipeline(project)
-            }
+            repository.allProjects.collectLatest { list -> _uiState.update { it.copy(projects = list) } }
         }
     }
 
     fun setRepoSourceOption(source: String) {
-        _uiState.update { it.copy(repoSourceOption = source) }
+        _uiState.update { it.copy(repoSourceOption = source, ingestError = null) }
     }
 
     fun setProjectNameInput(name: String) {
@@ -188,96 +177,46 @@ class CodeCastViewModel(
     }
 
     fun setRepoUrlInput(url: String) {
-        _uiState.update { it.copy(repoUrlInput = url) }
+        _uiState.update { it.copy(repoUrlInput = url, ingestError = null) }
     }
 
-    fun handleZipFileUri(context: android.content.Context, uri: android.net.Uri) {
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+    fun handleZipFileUri(context: Context, uri: Uri) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isFetching = true, ingestError = null) }
             try {
-                var entriesCount = 0
-                val detectedRoutes = mutableListOf<String>()
-                var detectedFramework = "React 18 + Vite (SPA)"
-                var totalBytes = 0L
-
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    java.util.zip.ZipInputStream(inputStream).use { zis ->
-                        var entry = zis.nextEntry
-                        while (entry != null) {
-                            entriesCount++
-                            totalBytes += entry.size.coerceAtLeast(0L)
-                            val name = entry.name.lowercase()
-                            if (name.contains("next.config") || (name.contains("package.json") && detectedFramework.contains("React"))) {
-                                detectedFramework = "Next.js 14 (App Router)"
-                            } else if (name.contains("pubspec.yaml")) {
-                                detectedFramework = "Flutter + Dart"
-                            } else if (name.contains("requirements.txt") || name.contains("main.py")) {
-                                detectedFramework = "FastAPI + Python"
-                            } else if (name.contains("artisan") || name.contains("composer.json")) {
-                                detectedFramework = "Laravel 11 + PHP"
-                            }
-                            if (name.contains("pages/") || name.contains("app/") || name.contains("routes/")) {
-                                if (detectedRoutes.size < 12 && !name.endsWith("/")) {
-                                    detectedRoutes.add("/" + entry.name.substringAfterLast("/"))
-                                }
-                            }
-                            entry = zis.nextEntry
-                        }
-                    }
+                val result = withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(uri)?.use { ZipCodebaseReader.read(it) }
+                        ?: throw IllegalStateException("Could not open the selected file.")
                 }
-
-                var parsedFiles: List<CodebaseFile> = emptyList()
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    parsedFiles = DefaultCodebaseData.parseZipStream(inputStream)
-                }
-
-                val sizeMb = if (totalBytes > 0) String.format("%.1f MB", totalBytes / (1024f * 1024f)) else "18.4 MB"
-                val rawName = uri.lastPathSegment?.substringAfterLast("/") ?: "codebase.zip"
-                val cleanProjectName = rawName.substringBeforeLast(".").replace('-', ' ').replace('_', ' ')
-                    .split(" ").joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
-
-                val finalCodeFiles = if (parsedFiles.isNotEmpty()) parsedFiles else DefaultCodebaseData.getDefaultCodebase(detectedFramework)
-
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    _uiState.update {
-                        it.copy(
-                            uploadedZipUri = uri.toString(),
-                            uploadedZipFileName = rawName,
-                            uploadedZipFileSize = sizeMb,
-                            uploadedZipEntryCount = entriesCount.coerceAtLeast(36),
-                            uploadedZipFramework = detectedFramework,
-                            uploadedZipDetectedRoutes = if (detectedRoutes.isNotEmpty()) detectedRoutes else listOf("/login", "/dashboard", "/checkout", "/settings"),
-                            extractedCodeFiles = finalCodeFiles,
-                            selectedCodeFile = finalCodeFiles.firstOrNull(),
-                            projectNameInput = cleanProjectName.ifEmpty { "Uploaded WebApp" },
-                            notificationMessage = "ZIP parsed: ${finalCodeFiles.size} source files indexed ($detectedFramework)"
-                        )
-                    }
-                }
+                val rawName = uri.lastPathSegment?.substringAfterLast("/")?.substringAfterLast(":") ?: "codebase.zip"
+                applyIngest(result, rawName, uri.toString())
             } catch (e: Exception) {
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    val rawName = uri.lastPathSegment?.substringAfterLast("/") ?: "codebase.zip"
-                    selectSampleZip(rawName, "Next.js 14 + TypeScript", 124, "15.2 MB")
-                }
+                _uiState.update { it.copy(isFetching = false, ingestError = e.message ?: "Could not read the ZIP archive.") }
             }
         }
     }
 
-    fun selectSampleZip(fileName: String, framework: String, fileCount: Int, sizeStr: String) {
-        val cleanName = fileName.substringBeforeLast(".").replace('-', ' ').replace('_', ' ')
-            .split(" ").joinToString(" ") { word -> word.replaceFirstChar { it.uppercase() } }
-        val sampleCode = DefaultCodebaseData.getDefaultCodebase(framework)
+    private suspend fun applyIngest(result: ZipReadResult, sourceName: String, uri: String?) {
+        val analysis = withContext(Dispatchers.Default) { CodebaseAnalyzer.analyze(result.files) }
+        val cleanName = sourceName.substringBeforeLast(".").replace('-', ' ').replace('_', ' ')
+            .split(" ").filter { it.isNotEmpty() }.joinToString(" ") { w -> w.replaceFirstChar { it.uppercase() } }
         _uiState.update {
             it.copy(
-                uploadedZipUri = "sample://$fileName",
-                uploadedZipFileName = fileName,
-                uploadedZipFileSize = sizeStr,
-                uploadedZipEntryCount = fileCount,
-                uploadedZipFramework = framework,
-                uploadedZipDetectedRoutes = listOf("/auth/login", "/auth/signup", "/dashboard", "/products/manage", "/orders/invoice", "/settings/api"),
-                extractedCodeFiles = sampleCode,
-                selectedCodeFile = sampleCode.firstOrNull(),
-                projectNameInput = cleanName,
-                notificationMessage = "Loaded verified codebase: $fileName (${sampleCode.size} source files)"
+                isFetching = false,
+                ingestError = null,
+                analysis = analysis,
+                uploadedZipUri = uri,
+                uploadedZipFileName = sourceName,
+                uploadedZipFileSize = String.format("%.1f MB", result.totalBytes / (1024f * 1024f)),
+                uploadedZipEntryCount = result.entryCount,
+                uploadedZipFramework = analysis.framework,
+                uploadedZipDetectedRoutes = analysis.routes.filter { r -> r.kind == "screen" }.map { r -> r.path },
+                extractedCodeFiles = result.files,
+                selectedCodeFile = result.files.firstOrNull(),
+                projectNameInput = if (it.projectNameInput.isBlank()) cleanName else it.projectNameInput,
+                selectedWorkflow = null,
+                stepsList = emptyList(),
+                notificationMessage = "Indexed ${result.files.size} source files (${analysis.framework})"
             )
         }
     }
@@ -295,7 +234,8 @@ class CodeCastViewModel(
     }
 
     fun openCodeFileByPath(path: String) {
-        val found = _uiState.value.extractedCodeFiles.find { it.path.contains(path, ignoreCase = true) }
+        val clean = path.substringBeforeLast(':')
+        val found = _uiState.value.extractedCodeFiles.find { it.path.contains(clean, ignoreCase = true) }
         _uiState.update { it.copy(showCodebaseExplorer = true, selectedCodeFile = found ?: it.extractedCodeFiles.firstOrNull()) }
     }
 
@@ -311,7 +251,11 @@ class CodeCastViewModel(
                 uploadedZipFileSize = null,
                 uploadedZipEntryCount = 0,
                 uploadedZipFramework = null,
-                uploadedZipDetectedRoutes = emptyList()
+                uploadedZipDetectedRoutes = emptyList(),
+                extractedCodeFiles = emptyList(),
+                analysis = ProjectAnalysis.EMPTY,
+                selectedWorkflow = null,
+                stepsList = emptyList()
             )
         }
     }
@@ -322,7 +266,7 @@ class CodeCastViewModel(
                 presenterFaceUri = uriString,
                 presenterAvatarPreset = "custom_face",
                 presentationType = "FACE_AND_VOICE",
-                notificationMessage = "Presenter face likeness loaded successfully!"
+                notificationMessage = "Presenter photo added. It appears as a circle in the exported video."
             )
         }
     }
@@ -363,24 +307,14 @@ class CodeCastViewModel(
         _uiState.update {
             it.copy(
                 isRecordingVoice = false,
-                hasClonedVoice = true,
-                clonedVoiceAudioUri = "local://recorded_voice_sample.wav",
-                voiceName = "Virtual Me (Sharif Voice Clone)",
-                voiceAccent = "Personal Cloned Cadence",
-                notificationMessage = "Voice clone model synthesized! 98.4% vocal timbre match."
+                notificationMessage = "Voice cloning isn't available on-device. Narration uses the system text-to-speech voice you selected."
             )
         }
     }
 
     fun setVoiceAudioSampleUri(uriString: String) {
         _uiState.update {
-            it.copy(
-                clonedVoiceAudioUri = uriString,
-                hasClonedVoice = true,
-                voiceName = "Virtual Me (Imported Audio Clone)",
-                voiceAccent = "Uploaded Audio Timbre",
-                notificationMessage = "Voice sample imported and cloned successfully!"
-            )
+            it.copy(notificationMessage = "Voice cloning isn't available on-device. Narration uses the system text-to-speech voice you selected.")
         }
     }
 
@@ -388,72 +322,102 @@ class CodeCastViewModel(
         _uiState.update { it.copy(clonedVoicePitch = pitch) }
     }
 
+    /** Speaks a real sample with the system TTS engine using the current voice settings. */
     fun testPlayVoiceSample() {
         viewModelScope.launch {
             _uiState.update { it.copy(isTestingVoiceAudio = true) }
-            delay(2200)
-            _uiState.update { it.copy(isTestingVoiceAudio = false) }
+            val st = _uiState.value
+            val narrator = Narrator(appContext)
+            try {
+                if (narrator.prepare(st.narrationLang, st.speakingSpeed, pitchFor(st))) {
+                    val wav = narrator.synthesize("This is a sample of the narration voice for your tutorial.", "sample")
+                    if (wav != null) playPcm(wav) else _uiState.update { it.copy(notificationMessage = "Speech synthesis failed.") }
+                } else {
+                    _uiState.update { it.copy(notificationMessage = "No text-to-speech voice installed for ${st.narrationLang}.") }
+                }
+            } finally {
+                narrator.shutdown()
+                _uiState.update { it.copy(isTestingVoiceAudio = false) }
+            }
         }
     }
+
+    private suspend fun playPcm(wav: WavData) = withContext(Dispatchers.IO) {
+        val ch = if (wav.channels == 1) android.media.AudioFormat.CHANNEL_OUT_MONO else android.media.AudioFormat.CHANNEL_OUT_STEREO
+        val track = android.media.AudioTrack.Builder()
+            .setAudioFormat(android.media.AudioFormat.Builder().setEncoding(android.media.AudioFormat.ENCODING_PCM_16BIT).setSampleRate(wav.sampleRate).setChannelMask(ch).build())
+            .setBufferSizeInBytes(wav.pcm.size * 2)
+            .setTransferMode(android.media.AudioTrack.MODE_STATIC)
+            .build()
+        track.write(wav.pcm, 0, wav.pcm.size)
+        track.play()
+        delay((wav.seconds * 1000).toLong() + 200)
+        track.release()
+    }
+
+    private fun pitchFor(st: CodeCastUiState) = if (st.voiceGender.equals("Female", true)) 1.15f else 0.9f
 
     fun createAndAnalyzeProject(sourceType: String) {
+        val current = _uiState.value
+        if (current.isFetching) return
         viewModelScope.launch {
-            val framework = if (_uiState.value.uploadedZipFramework != null) {
-                _uiState.value.uploadedZipFramework!!
-            } else when (sourceType) {
-                "ZIP" -> "React 18 + Vite (SPA)"
-                "GITHUB" -> "Next.js 14 + TypeScript"
-                "GITLAB" -> "FastAPI + Vue 3"
-                "BITBUCKET" -> "Django + React"
-                else -> "Next.js 14 + TailwindCSS"
-            }
-
-            val project = ProjectEntity(
-                name = _uiState.value.projectNameInput.ifEmpty { "My SaaS WebApp" },
-                framework = framework,
-                repoSource = sourceType,
-                repoUrl = _uiState.value.repoUrlInput,
-                screensCount = if (_uiState.value.uploadedZipEntryCount > 0) (_uiState.value.uploadedZipEntryCount / 10).coerceIn(6, 28) else 12,
-                routesCount = if (_uiState.value.uploadedZipDetectedRoutes.isNotEmpty()) _uiState.value.uploadedZipDetectedRoutes.size * 2 else 24,
-                featuresJson = "Authentication, Product Management, Orders, WhatsApp Integration, Payments, Settings",
-                techStackJson = "$framework, REST API, TailwindCSS, PostgreSQL",
-                activeVersion = "v1.0.0",
-                hasRuntimeVerification = true
-            )
-            val id = repository.insertProject(project).toInt()
-            val saved = repository.getProject(id)
-            if (saved != null) {
-                _uiState.update { it.copy(selectedProject = saved, currentStep = WizardStep.ANALYZE_APP) }
-                runAnalysisPipeline(saved)
-            }
-        }
-    }
-
-    private fun runAnalysisPipeline(project: ProjectEntity) {
-        viewModelScope.launch {
-            _uiState.update {
-                it.copy(
-                    isAnalyzing = true,
-                    analysisChecklist = listOf(
-                        "Project structure" to false,
-                        "Pages & screens" to false,
-                        "Navigation routes" to false,
-                        "Forms & inputs" to false,
-                        "Authentication flows" to false,
-                        "Features & workflows" to false,
-                        "Runtime verification sandbox" to false
+            _uiState.update { it.copy(isFetching = true, ingestError = null) }
+            try {
+                if (sourceType == "ZIP") {
+                    if (_uiState.value.extractedCodeFiles.isEmpty()) throw IllegalStateException("Choose a ZIP archive of your codebase first.")
+                } else {
+                    val url = _uiState.value.repoUrlInput.trim()
+                    if (RepoUrl.parse(url) == null) throw IllegalStateException("Enter a valid repository URL, e.g. https://github.com/owner/repo")
+                    val result = withContext(Dispatchers.IO) { CodebaseFetcher.fetch(url) }
+                    applyIngest(result, RepoUrl.displayName(url), null)
+                }
+                val st = _uiState.value
+                val a = st.analysis
+                if (a.features.isEmpty() && a.routes.isEmpty()) {
+                    throw IllegalStateException("No screens, forms or routes were found in this codebase (${st.extractedCodeFiles.size} files scanned, framework: ${a.framework}).")
+                }
+                val project = ProjectEntity(
+                    name = st.projectNameInput.ifBlank { "Untitled project" },
+                    framework = a.framework,
+                    repoSource = sourceType,
+                    repoUrl = st.repoUrlInput,
+                    screensCount = a.screenCount,
+                    routesCount = a.routes.size,
+                    featuresJson = a.features.joinToString(", ") { it.name },
+                    techStackJson = a.techStack.joinToString(", "),
+                    activeVersion = "v1.0.0",
+                    hasRuntimeVerification = false
+                )
+                val id = repository.insertProject(project).toInt()
+                repository.addVersion(
+                    ProjectVersionEntity(
+                        projectId = id, versionTag = "v1.0.0",
+                        changelog = "Indexed ${st.extractedCodeFiles.size} files: ${a.screenCount} screens, ${a.routes.size} routes, ${a.features.size} features.",
+                        affectedTutorialsCount = 0, isLatest = true
                     )
                 )
+                val saved = repository.getProject(id)
+                _uiState.update {
+                    it.copy(
+                        isFetching = false,
+                        selectedProject = saved,
+                        currentStep = WizardStep.ANALYZE_APP,
+                        isAnalyzing = false,
+                        analysisChecklist = listOf(
+                            "Project structure — ${st.extractedCodeFiles.size} source files" to true,
+                            "Pages & screens — ${a.screenCount}" to (a.screenCount > 0),
+                            "Navigation routes — ${a.routes.size}" to a.routes.isNotEmpty(),
+                            "Forms & inputs — ${a.formCount} screens with inputs" to (a.formCount > 0),
+                            "Authentication flows — ${a.features.count { f -> f.name == "Authentication" }}" to a.features.any { f -> f.name == "Authentication" },
+                            "Features & workflows — ${a.workflows.size}" to a.workflows.isNotEmpty(),
+                            "Runtime verification — not performed (static analysis only)" to false
+                        )
+                    )
+                }
+                saved?.let { selectProject(it) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isFetching = false, ingestError = e.message ?: "Analysis failed.") }
             }
-
-            val checklist = _uiState.value.analysisChecklist.toMutableList()
-            for (i in checklist.indices) {
-                delay(300)
-                checklist[i] = checklist[i].first to true
-                _uiState.update { it.copy(analysisChecklist = checklist.toList()) }
-            }
-
-            _uiState.update { it.copy(isAnalyzing = false) }
         }
     }
 
@@ -487,32 +451,16 @@ class CodeCastViewModel(
     // Tutorial Type Selection
     fun selectTutorialType(type: String) {
         _uiState.update { it.copy(selectedTutorialType = type) }
-        if (type != "CUSTOM") {
-            // Pick corresponding feature/workflow automatically
-            val features = repository.getDiscoveredFeatures()
-            val feature = when (type) {
-                "SIGN_UP", "LOGIN", "PASSWORD_RESET" -> features.first { it.name == "Authentication" }
-                "FEATURE_WALKTHROUGH" -> features.first { it.name == "Product Management" }
-                "HOW_TO" -> features.first { it.name == "Orders & Invoicing" }
-                "ADMIN_GUIDE" -> features.first { it.name == "Payments & Paystack" }
-                else -> features.first()
-            }
-
-            val workflow = when (type) {
-                "SIGN_UP" -> feature.workflows.first { it.id == "wf_signup" }
-                "LOGIN" -> feature.workflows.first { it.id == "wf_login" }
-                "PASSWORD_RESET" -> feature.workflows.first { it.id == "wf_reset_pwd" }
-                else -> feature.workflows.first()
-            }
-
-            _uiState.update {
-                it.copy(
-                    selectedFeature = feature.name,
-                    selectedWorkflow = workflow
-                )
-            }
-            populateStepsFromWorkflow(workflow)
+        if (type == "CUSTOM") return
+        val a = _uiState.value.analysis
+        val workflow = CodebaseAnalyzer.workflowForType(a, type)
+        if (workflow == null) {
+            _uiState.update { it.copy(selectedWorkflow = null, stepsList = emptyList(), notificationMessage = "This codebase has no matching flow for that tutorial type. Pick another type or use a custom prompt.") }
+            return
         }
+        val feature = a.features.firstOrNull { f -> f.workflows.any { w -> w.id == workflow.id } }?.name ?: "General"
+        _uiState.update { it.copy(selectedFeature = feature, selectedWorkflow = workflow) }
+        populateStepsFromWorkflow(workflow)
     }
 
     fun setCustomPromptInput(prompt: String) {
@@ -520,28 +468,24 @@ class CodeCastViewModel(
     }
 
     fun resolveCustomPrompt() {
-        val prompt = _uiState.value.customPromptInput
-        val inferredWorkflow = repository.resolveCustomTutorialPrompt(prompt)
-        _uiState.update {
-            it.copy(
-                selectedFeature = "Custom Workflow",
-                selectedWorkflow = inferredWorkflow,
-                customWorkflowInferred = inferredWorkflow
-            )
+        val st = _uiState.value
+        val wf = CodebaseAnalyzer.resolvePrompt(st.analysis, st.customPromptInput)
+        if (wf == null) {
+            _uiState.update {
+                it.copy(selectedWorkflow = null, customWorkflowInferred = null, stepsList = emptyList(),
+                    notificationMessage = "Nothing in this codebase matches that request. Try naming a screen, form or feature that exists.")
+            }
+            return
         }
-        populateStepsFromWorkflow(inferredWorkflow)
+        _uiState.update { it.copy(selectedFeature = "Custom Workflow", selectedWorkflow = wf, customWorkflowInferred = wf) }
+        populateStepsFromWorkflow(wf)
     }
 
     fun selectFeature(featureName: String) {
-        val feature = repository.getDiscoveredFeatures().find { it.name == featureName }
+        val feature = _uiState.value.analysis.features.find { it.name == featureName }
         if (feature != null && feature.workflows.isNotEmpty()) {
             val workflow = feature.workflows.first()
-            _uiState.update {
-                it.copy(
-                    selectedFeature = featureName,
-                    selectedWorkflow = workflow
-                )
-            }
+            _uiState.update { it.copy(selectedFeature = featureName, selectedWorkflow = workflow) }
             populateStepsFromWorkflow(workflow)
         }
     }
@@ -564,7 +508,9 @@ class CodeCastViewModel(
                 verificationStatus = stepData.verificationStatus,
                 evidenceSource = stepData.evidenceSource,
                 evidenceElement = stepData.evidenceElement,
-                isChecked = true
+                isChecked = true,
+                codeSnippet = stepData.codeSnippet,
+                codeFilePath = stepData.codeFilePath
             )
         }
         _uiState.update { it.copy(stepsList = steps) }
@@ -630,9 +576,9 @@ class CodeCastViewModel(
                 screenName = screen,
                 actionType = action,
                 instruction = instruction,
-                verificationStatus = "CODE_VERIFIED",
-                evidenceSource = "User Defined / Project AST",
-                evidenceElement = "<InteractiveComponent />",
+                verificationStatus = "INFERRED",
+                evidenceSource = "Added manually",
+                evidenceElement = "",
                 isChecked = true
             )
             state.copy(stepsList = state.stepsList + newStep)
@@ -745,108 +691,196 @@ class CodeCastViewModel(
     }
 
     // Video Generation Execution Pipeline
+    private fun setStage(name: String, progress: Float, done: List<String>) {
+        _uiState.update { it.copy(generationProgress = it.generationProgress.copy(phaseName = name, progressPercent = progress, completedStages = done)) }
+    }
+
+    private fun renderOptions(st: CodeCastUiState, projectName: String?): RenderOptions {
+        val face = if (st.presentationType == "FACE_AND_VOICE" && st.presenterFaceUri != null) {
+            try {
+                appContext.contentResolver.openInputStream(Uri.parse(st.presenterFaceUri))?.use { android.graphics.BitmapFactory.decodeStream(it) }
+            } catch (_: Exception) { null }
+        } else null
+        return RenderOptions(
+            showSubtitles = st.hasSubtitles,
+            watermark = if (st.watermarkOption == "None") null else "CodeCast" + (projectName?.let { " · $it" } ?: ""),
+            fade = st.transitionStyle != "None",
+            presenter = face,
+            presenterRight = st.presenterPosition.endsWith("right")
+        )
+    }
+
+    /** Speaks every scene with the system TTS engine. Extends scene durations so speech is never cut. */
+    private suspend fun narrate(
+        scenes: List<GeneratedSceneEntity>, tutorial: TutorialPlanEntity, onProgress: (Float) -> Unit
+    ): Triple<List<GeneratedSceneEntity>, Map<Int, WavData?>, Boolean> {
+        val st = _uiState.value
+        val narrator = Narrator(appContext)
+        try {
+            if (!narrator.prepare(tutorial.narrationLang, tutorial.speakingSpeed, pitchFor(st))) {
+                return Triple(scenes, emptyMap(), false)
+            }
+            val audio = LinkedHashMap<Int, WavData?>()
+            val out = scenes.mapIndexed { i, sc ->
+                val wav = narrator.synthesize(sc.narrationScript, "s${sc.id}_${System.nanoTime()}")
+                audio[sc.sceneOrder] = wav
+                onProgress((i + 1f) / scenes.size)
+                val needed = wav?.let { Math.ceil(it.seconds + 0.7).toInt() } ?: 0
+                if (needed > sc.durationSeconds) {
+                    sc.copy(durationSeconds = needed).also { repository.updateScene(it) }
+                } else sc
+            }
+            return Triple(out, audio, audio.values.any { it != null })
+        } finally {
+            narrator.shutdown()
+        }
+    }
+
+    private suspend fun renderVideo(
+        scenes: List<GeneratedSceneEntity>, audio: Map<Int, WavData?>, tutorialId: Int, onProgress: (Float) -> Unit
+    ): File {
+        val st = _uiState.value
+        val dir = appContext.getExternalFilesDir(android.os.Environment.DIRECTORY_MOVIES) ?: appContext.filesDir
+        val file = File(dir, "codecast_${tutorialId}_${System.currentTimeMillis()}.mp4")
+        val opts = renderOptions(st, st.selectedProject?.name)
+        return withContext(Dispatchers.Default) { VideoExporter(opts).export(scenes, audio, file, onProgress) }
+    }
+
     fun startVideoGeneration() {
         val project = _uiState.value.selectedProject ?: return
+        if (_uiState.value.stepsList.none { it.isChecked }) {
+            _uiState.update { it.copy(notificationMessage = "Select at least one step before generating.") }
+            return
+        }
         val currentTitle = _uiState.value.selectedWorkflow?.name ?: "Application Tutorial"
 
-        viewModelScope.launch {
-            // Save tutorial entity to DB
+        generationJob?.cancel()
+        generationJob = viewModelScope.launch {
+            val s0 = _uiState.value
             val tutorialEntity = TutorialPlanEntity(
                 projectId = project.id,
                 title = currentTitle,
-                tutorialType = _uiState.value.selectedTutorialType,
-                selectedFeature = _uiState.value.selectedFeature,
-                selectedWorkflow = _uiState.value.selectedWorkflow?.id ?: "",
-                audience = _uiState.value.audience,
-                experienceLevel = _uiState.value.experienceLevel,
-                duration = _uiState.value.duration,
-                presentationType = _uiState.value.presentationType,
-                presenterOption = _uiState.value.presenterOption,
-                voiceName = _uiState.value.voiceName,
-                voiceGender = _uiState.value.voiceGender,
-                voiceAccent = _uiState.value.voiceAccent,
-                speakingStyle = _uiState.value.speakingStyle,
-                speakingSpeed = _uiState.value.speakingSpeed,
-                narrationLang = _uiState.value.narrationLang,
-                subtitleLang = _uiState.value.subtitleLang,
-                customTerminology = _uiState.value.customTerminology,
-                hasSubtitles = _uiState.value.hasSubtitles,
-                subtitleStyle = _uiState.value.subtitleStyle,
-                subtitlePosition = _uiState.value.subtitlePosition,
-                visualStyle = _uiState.value.visualStyle,
-                cursorStyle = _uiState.value.cursorStyle,
-                calloutStyle = _uiState.value.calloutStyle,
-                zoomStyle = _uiState.value.zoomStyle,
-                transitionStyle = _uiState.value.transitionStyle,
-                illustrationStyle = _uiState.value.illustrationStyle,
-                backgroundMusic = _uiState.value.backgroundMusic,
-                musicVolume = _uiState.value.musicVolume,
-                watermarkOption = _uiState.value.watermarkOption,
+                tutorialType = s0.selectedTutorialType,
+                selectedFeature = s0.selectedFeature,
+                selectedWorkflow = s0.selectedWorkflow?.id ?: "",
+                audience = s0.audience,
+                experienceLevel = s0.experienceLevel,
+                duration = s0.duration,
+                presentationType = s0.presentationType,
+                presenterOption = s0.presenterOption,
+                voiceName = s0.voiceName,
+                voiceGender = s0.voiceGender,
+                voiceAccent = s0.voiceAccent,
+                speakingStyle = s0.speakingStyle,
+                speakingSpeed = s0.speakingSpeed,
+                narrationLang = s0.narrationLang,
+                subtitleLang = s0.subtitleLang,
+                customTerminology = s0.customTerminology,
+                hasSubtitles = s0.hasSubtitles,
+                subtitleStyle = s0.subtitleStyle,
+                subtitlePosition = s0.subtitlePosition,
+                visualStyle = s0.visualStyle,
+                cursorStyle = s0.cursorStyle,
+                calloutStyle = s0.calloutStyle,
+                zoomStyle = s0.zoomStyle,
+                transitionStyle = s0.transitionStyle,
+                illustrationStyle = s0.illustrationStyle,
+                backgroundMusic = s0.backgroundMusic,
+                musicVolume = s0.musicVolume,
+                watermarkOption = s0.watermarkOption,
                 status = "GENERATING"
             )
 
             val tutorialId = repository.saveTutorial(tutorialEntity).toInt()
-            val stepsWithTutId = _uiState.value.stepsList.map { it.copy(tutorialId = tutorialId) }
+            val stepsWithTutId = s0.stepsList.map { it.copy(tutorialId = tutorialId) }
             repository.saveSteps(stepsWithTutId)
+            val savedTutorial = repository.getTutorial(tutorialId) ?: return@launch
 
-            val savedTutorial = repository.getTutorial(tutorialId)
             _uiState.update {
                 it.copy(
                     activeTutorial = savedTutorial,
                     currentStep = WizardStep.GENERATE_VIDEO,
-                    generationProgress = GenerationProgressState(
-                        isRunning = true,
-                        currentPhaseIndex = 0,
-                        phaseName = "Analyzing workflow AST & routes...",
-                        progressPercent = 0.05f
-                    )
+                    exportedVideoPath = null,
+                    generationProgress = GenerationProgressState(isRunning = true, phaseName = "Planning scenes from your code evidence", progressPercent = 0.03f)
                 )
             }
+            val done = mutableListOf<String>()
+            try {
+                // 1. Plan + localize scenes
+                val terms = savedTutorial.customTerminology.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                val translator = if (BuildConfig.GEMINI_API_KEY.isNotBlank()) GeminiTranslator(BuildConfig.GEMINI_API_KEY, terms) else null
+                setStage("Writing narration and subtitles", 0.10f, done)
+                val (planned, loc) = repository.generateScenes(tutorialId, stepsWithTutId, savedTutorial, translator)
+                done.add("Planned ${planned.size} scenes from verified code evidence")
 
-            val stages = listOf(
-                "Analyzing workflow and call trees" to 0.15f,
-                "Preparing verified application screens" to 0.32f,
-                "Generating neural voice narration" to 0.50f,
-                "Synthesizing localized subtitles" to 0.68f,
-                "Assembling camera pans & click ripples" to 0.82f,
-                "Rendering high-definition video track" to 0.94f,
-                "Executing automated quality check" to 1.0f
-            )
+                // 2. Narration audio
+                setStage("Synthesizing narration audio", 0.25f, done)
+                val (scenes, audio, audioOk) = narrate(planned, savedTutorial, onProgress = { p -> setStage("Synthesizing narration audio", 0.25f + 0.25f * p, done) })
+                done.add(if (audioOk) "Narration audio synthesized" else "No speech engine for ${savedTutorial.narrationLang} (video will be silent)")
+                val finalScenes = repository.getScenesList(tutorialId)
 
-            val completed = mutableListOf<String>()
-            for ((stageName, progress) in stages) {
-                delay(400)
-                completed.add(stageName)
-                _uiState.update { state ->
-                    state.copy(
-                        generationProgress = state.generationProgress.copy(
-                            phaseName = stageName,
-                            progressPercent = progress,
-                            completedStages = completed.toList()
+                // 3. Render MP4
+                setStage("Rendering video", 0.50f, done)
+                val file = renderVideo(finalScenes, audio, tutorialId) { p -> setStage("Rendering video", 0.50f + 0.40f * p, done) }
+                done.add("Rendered ${file.name}")
+
+                // 4. Quality check
+                setStage("Running quality check", 0.95f, done)
+                val report = repository.runQualityCheck(stepsWithTutId, finalScenes, savedTutorial, _uiState.value.extractedCodeFiles, loc, audioOk)
+                done.add("Quality check: ${report.passedChecks}/${report.totalChecks} passed")
+                repository.updateTutorial(savedTutorial.copy(status = "COMPLETED"))
+
+                _uiState.update {
+                    it.copy(
+                        scenesList = finalScenes,
+                        selectedEditorScene = finalScenes.firstOrNull(),
+                        currentSceneIndex = 0,
+                        playbackSecond = 0f,
+                        exportedVideoPath = file.absolutePath,
+                        currentStep = WizardStep.VIDEO_PREVIEW_EDITOR,
+                        generationProgress = it.generationProgress.copy(
+                            isRunning = false, isCompleted = true, progressPercent = 1f,
+                            completedStages = done.toList(), qualityReport = report
                         )
                     )
                 }
-            }
-
-            // Generate scenes in repository
-            val scenes = repository.generateScenesFromSteps(tutorialId, stepsWithTutId, savedTutorial!!)
-            val qualityReport = repository.runQualityCheck(stepsWithTutId, savedTutorial)
-
-            repository.updateTutorial(savedTutorial.copy(status = "COMPLETED"))
-
-            _uiState.update {
-                it.copy(
-                    scenesList = scenes,
-                    selectedEditorScene = scenes.firstOrNull(),
-                    currentStep = WizardStep.VIDEO_PREVIEW_EDITOR,
-                    generationProgress = it.generationProgress.copy(
-                        isRunning = false,
-                        isCompleted = true,
-                        qualityReport = qualityReport
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                repository.updateTutorial(savedTutorial.copy(status = "DRAFT"))
+                _uiState.update {
+                    it.copy(
+                        generationProgress = it.generationProgress.copy(isRunning = false, phaseName = "Failed: ${e.message}"),
+                        currentStep = WizardStep.REVIEW_TUTORIAL,
+                        notificationMessage = "Video generation failed: ${e.message}"
                     )
-                )
+                }
             }
         }
+    }
+
+    /** Re-renders the MP4 from the current (possibly edited) scenes. */
+    fun exportVideo() {
+        val tutorial = _uiState.value.activeTutorial ?: return
+        if (_uiState.value.exportProgress != null) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(exportProgress = 0f) }
+            try {
+                val (scenes, audio, _) = narrate(_uiState.value.scenesList, tutorial, onProgress = { p -> _uiState.update { it.copy(exportProgress = 0.3f * p) } })
+                val file = renderVideo(scenes, audio, tutorial.id) { p -> _uiState.update { it.copy(exportProgress = 0.3f + 0.7f * p) } }
+                _uiState.update { it.copy(scenesList = scenes, exportProgress = null, exportedVideoPath = file.absolutePath, notificationMessage = "Video exported: ${file.name}") }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(exportProgress = null, notificationMessage = "Export failed: ${e.message}") }
+            }
+        }
+    }
+
+    /** Writes an SRT file for the current scenes and returns it. */
+    fun writeSrt(): File? {
+        val scenes = _uiState.value.scenesList
+        if (scenes.isEmpty()) return null
+        val dir = appContext.getExternalFilesDir(android.os.Environment.DIRECTORY_MOVIES) ?: appContext.filesDir
+        return File(dir, "codecast_subtitles.srt").also { it.writeText(SrtWriter.build(scenes)) }
     }
 
     // Video Player & Editor Operations
@@ -980,22 +1014,49 @@ class CodeCastViewModel(
         _uiState.update { it.copy(showQualityReportDialog = show) }
     }
 
+    /** Re-fetches the repository, re-analyzes and records a new version with a real diff. */
     fun applyVersionUpdate() {
-        _uiState.update {
-            it.copy(
-                notificationMessage = "Tutorial synced with project v1.1.0 codebase changes. Re-verified 1 step."
-            )
+        val project = _uiState.value.selectedProject ?: return
+        if (project.repoSource == "ZIP" || project.repoUrl.isBlank()) {
+            _uiState.update { it.copy(notificationMessage = "Upload the updated ZIP from the first step to create a new version.") }
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val before = _uiState.value.analysis
+                val result = withContext(Dispatchers.IO) { CodebaseFetcher.fetch(project.repoUrl) }
+                val after = withContext(Dispatchers.Default) { CodebaseAnalyzer.analyze(result.files) }
+                val old = before.routes.map { it.path }.toSet()
+                val new = after.routes.map { it.path }.toSet()
+                val tag = "v1.${_uiState.value.versionsList.size}.0"
+                repository.addVersion(
+                    ProjectVersionEntity(
+                        projectId = project.id, versionTag = tag,
+                        changelog = "Routes added: ${(new - old).size}, removed: ${(old - new).size}. Files: ${result.files.size}.",
+                        affectedTutorialsCount = if (old != new) 1 else 0, isLatest = true
+                    )
+                )
+                repository.updateProject(project.copy(activeVersion = tag, screensCount = after.screenCount, routesCount = after.routes.size))
+                _uiState.update {
+                    it.copy(analysis = after, extractedCodeFiles = result.files,
+                        selectedProject = it.selectedProject?.copy(activeVersion = tag),
+                        notificationMessage = "Re-analyzed $tag: ${(new - old).size} routes added, ${(old - new).size} removed.")
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(notificationMessage = "Update failed: ${e.message}") }
+            }
         }
     }
 }
 
 class CodeCastViewModelFactory(
-    private val repository: CodeCastRepository
+    private val repository: CodeCastRepository,
+    private val appContext: Context
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(CodeCastViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return CodeCastViewModel(repository) as T
+            return CodeCastViewModel(repository, appContext.applicationContext) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

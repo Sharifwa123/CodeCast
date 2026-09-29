@@ -20,6 +20,8 @@ android {
     versionName = "1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    // Optional: enables real subtitle/narration translation. Set the GEMINI_API_KEY secret in CI.
+    buildConfigField("String", "GEMINI_API_KEY", "\"${System.getenv("GEMINI_API_KEY") ?: ""}\"")
   }
 
   signingConfigs {

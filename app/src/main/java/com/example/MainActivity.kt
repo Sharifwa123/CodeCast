@@ -20,7 +20,7 @@ class MainActivity : ComponentActivity() {
 
         val database = CodeCastDatabase.getDatabase(applicationContext)
         val repository = CodeCastRepository(database.projectDao(), database.tutorialDao())
-        val viewModelFactory = CodeCastViewModelFactory(repository)
+        val viewModelFactory = CodeCastViewModelFactory(repository, applicationContext)
 
         val viewModel: CodeCastViewModel by viewModels { viewModelFactory }
 

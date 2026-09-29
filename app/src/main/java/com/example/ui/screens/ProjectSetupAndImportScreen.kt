@@ -43,11 +43,11 @@ fun ProjectSetupAndImportScreen(
     onProjectNameChange: (String) -> Unit,
     onRepoUrlChange: (String) -> Unit,
     onPickZipFile: () -> Unit = {},
-    onSelectSampleZip: (fileName: String, framework: String, filesCount: Int, sizeStr: String) -> Unit = { _, _, _, _ -> },
     onClearZip: () -> Unit = {},
     onExploreCode: (() -> Unit)? = null,
     onContinueClick: () -> Unit,
-    onQuickDemoClick: () -> Unit
+    isBusy: Boolean = false,
+    errorMessage: String? = null
 ) {
     val scrollState = rememberScrollState()
 
@@ -101,61 +101,6 @@ fun ProjectSetupAndImportScreen(
                     color = Slate300,
                     lineHeight = 18.sp
                 )
-
-                // Quick Demo Callout
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = Slate850,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Indigo500.copy(alpha = 0.4f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onQuickDemoClick() }
-                        .padding(top = 4.dp)
-                        .testTag("demo_banner_card")
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(
-                                    text = "Ready to test right now?",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    color = Slate100
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(3.dp))
-                                        .background(Cyan500.copy(alpha = 0.2f))
-                                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                                ) {
-                                    Text("INSTANT DEMO", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Cyan400)
-                                }
-                            }
-                            Text(
-                                text = "Load 'PayFlex SaaS' (Next.js 14 + Stripe + Paystack) pre-analyzed with 14 screens & verified workflows.",
-                                fontSize = 11.sp,
-                                color = Slate400,
-                                modifier = Modifier.padding(top = 2.dp)
-                            )
-                        }
-
-                        Button(
-                            onClick = onQuickDemoClick,
-                            colors = ButtonDefaults.buttonColors(containerColor = Indigo600),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                            modifier = Modifier
-                                .defaultMinSize(minHeight = 36.dp)
-                                .padding(start = 8.dp)
-                                .testTag("load_demo_project_btn")
-                        ) {
-                            Text("Launch Demo", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                }
             }
         }
 
@@ -337,7 +282,7 @@ fun ProjectSetupAndImportScreen(
                                         }
                                         Surface(color = Slate900, shape = RoundedCornerShape(4.dp)) {
                                             Text(
-                                                text = "AST Indexed ✓",
+                                                text = "Source indexed ✓",
                                                 fontSize = 10.sp,
                                                 color = Emerald400,
                                                 fontWeight = FontWeight.Bold,
@@ -432,58 +377,6 @@ fun ProjectSetupAndImportScreen(
                                         Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text("Browse Device Files (.zip)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                    }
-                                }
-                            }
-
-                            // Quick Sample Codebases
-                            Text(
-                                text = "OR SELECT A PRE-VERIFIED CODEBASE SAMPLE",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Slate400,
-                                letterSpacing = 0.5.sp,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-
-                            val samples = listOf(
-                                SampleCodebase("ecommerce-nextjs-app.zip", "Next.js 14 + Stripe + Prisma", 148, "14.2 MB"),
-                                SampleCodebase("banking-dashboard-react.zip", "React 18 + Vite + Redux", 96, "11.5 MB"),
-                                SampleCodebase("mobile-fitness-flutter.zip", "Flutter 3.22 + Riverpod", 184, "22.8 MB"),
-                                SampleCodebase("fastapi-celery-service.zip", "FastAPI + PostgreSQL + Celery", 64, "8.4 MB")
-                            )
-
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                samples.forEach { (fileName, framework, fileCount, sizeStr) ->
-                                    Surface(
-                                        onClick = { onSelectSampleZip(fileName, framework, fileCount, sizeStr) },
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = Slate900,
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, Slate800),
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.FolderZip,
-                                                    contentDescription = null,
-                                                    tint = Indigo400,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                                Column {
-                                                    Text(text = fileName, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Slate200)
-                                                    Text(text = "$framework • $fileCount files ($sizeStr)", fontSize = 10.sp, color = Slate400)
-                                                }
-                                            }
-                                            Text(text = "Select", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Indigo400)
-                                        }
                                     }
                                 }
                             }
@@ -589,26 +482,32 @@ fun ProjectSetupAndImportScreen(
                     modifier = Modifier.size(16.dp)
                 )
                 Text(
-                    text = "Enterprise Privacy: Encrypted storage, credential redaction, private AST indexing. Code is never exposed publicly.",
+                    text = "Your code is analysed on this device. Repository URLs are downloaded over HTTPS (public repositories only).",
                     fontSize = 10.sp,
                     color = Slate400
                 )
             }
         }
 
+        if (errorMessage != null) {
+            Text(text = errorMessage, color = Color(0xFFF87171), fontSize = 12.sp, modifier = Modifier.testTag("ingest_error"))
+        }
+
         // Primary Action
         Button(
             onClick = onContinueClick,
+            enabled = !isBusy,
             colors = ButtonDefaults.buttonColors(containerColor = Indigo600),
             modifier = Modifier
                 .fillMaxWidth()
                 .defaultMinSize(minHeight = 48.dp)
                 .testTag("analyze_codebase_btn")
         ) {
-            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null)
+            if (isBusy) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
+            else Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Analyze Codebase & Discover Workflows",
+                text = if (isBusy) "Reading codebase…" else "Analyze Codebase & Discover Workflows",
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp
             )

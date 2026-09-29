@@ -20,12 +20,14 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.ProjectAnalysis
 import com.example.data.model.ProjectEntity
 import com.example.ui.theme.*
 
 @Composable
 fun AnalysisProgressScreen(
     project: ProjectEntity?,
+    analysis: ProjectAnalysis,
     isAnalyzing: Boolean,
     checklist: List<Pair<String, Boolean>>,
     onContinueClick: () -> Unit
@@ -211,17 +213,17 @@ fun AnalysisProgressScreen(
                 ) {
                     StatBox(
                         title = "Screens",
-                        value = "${project?.screensCount ?: 14}",
+                        value = "${analysis.screenCount}",
                         modifier = Modifier.weight(1f)
                     )
                     StatBox(
                         title = "Routes",
-                        value = "${project?.routesCount ?: 28}",
+                        value = "${analysis.routes.size}",
                         modifier = Modifier.weight(1f)
                     )
                     StatBox(
                         title = "Features",
-                        value = "6 Discovered",
+                        value = "${analysis.features.size} found",
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -238,13 +240,13 @@ fun AnalysisProgressScreen(
                     ) {
                         Text(text = "Framework & Tech Stack:", fontSize = 10.sp, color = Slate400)
                         Text(
-                            text = project?.framework ?: "Next.js 14 (App Router) + TypeScript",
+                            text = analysis.framework,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Slate100
                         )
                         Text(
-                            text = "Integrations: Prisma ORM, Stripe API, Paystack, WhatsApp Business Cloud, NextAuth JWT",
+                            text = "Stack: " + analysis.techStack.joinToString(", ").ifEmpty { "not detected" },
                             fontSize = 11.sp,
                             color = Cyan400
                         )
