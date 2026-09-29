@@ -35,6 +35,8 @@ fun VoiceLanguageScreen(
     hasSubtitles: Boolean,
     subtitleStyle: String,
     subtitlePosition: String,
+    hasClonedVoice: Boolean = false,
+    clonedVoiceName: String = "Virtual Me (Sharif Voice Clone)",
     onVoiceChange: (name: String, gender: String, accent: String, style: String, speed: Float) -> Unit,
     onNarrationLangChange: (String) -> Unit,
     onSubtitleLangChange: (String) -> Unit,
@@ -104,6 +106,71 @@ fun VoiceLanguageScreen(
                     color = Slate400,
                     letterSpacing = 0.6.sp
                 )
+
+                // Cloned Voice (Virtual Me) Card if active
+                if (hasClonedVoice) {
+                    val isCloneSelected = voiceName.contains("Virtual Me") || voiceName.contains("Clone")
+                    Surface(
+                        onClick = {
+                            onVoiceChange(
+                                clonedVoiceName,
+                                "Custom",
+                                "Personal Cadence",
+                                speakingStyle,
+                                speakingSpeed
+                            )
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isCloneSelected) Slate800 else Slate950,
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (isCloneSelected) Emerald400 else Slate700
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(Emerald500.copy(alpha = 0.2f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.GraphicEq, contentDescription = null, tint = Emerald400, modifier = Modifier.size(20.dp))
+                                }
+                                Column {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text(text = clonedVoiceName, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Slate100)
+                                        Surface(color = Emerald500.copy(alpha = 0.2f), shape = RoundedCornerShape(3.dp)) {
+                                            Text("AI DEEPFAKE CLONE", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Emerald400, modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp))
+                                        }
+                                    }
+                                    Text(text = "Synthesized from your authentic vocal sample (timbre + inflection match)", fontSize = 10.sp, color = Slate300)
+                                }
+                            }
+                            RadioButton(
+                                selected = isCloneSelected,
+                                onClick = {
+                                    onVoiceChange(
+                                        clonedVoiceName,
+                                        "Custom",
+                                        "Personal Cadence",
+                                        speakingStyle,
+                                        speakingSpeed
+                                    )
+                                },
+                                colors = RadioButtonDefaults.colors(selectedColor = Emerald400)
+                            )
+                        }
+                    }
+
+                    Text(text = "OR CHOOSE A STUDIO PRESET VOICE ACTOR", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Slate400, letterSpacing = 0.5.sp)
+                }
 
                 // Voice Options
                 Row(

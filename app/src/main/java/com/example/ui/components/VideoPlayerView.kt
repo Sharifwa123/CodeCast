@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.data.model.GeneratedSceneEntity
 import com.example.data.model.TutorialPlanEntity
 import com.example.ui.theme.*
@@ -40,6 +41,10 @@ fun VideoPlayerAndEditorView(
     playbackSecond: Float,
     isPlaying: Boolean,
     selectedScene: GeneratedSceneEntity?,
+    presenterFaceUri: String? = null,
+    presenterFraming: String = "circle",
+    hasClonedVoice: Boolean = false,
+    clonedVoiceName: String = "",
     onPlayPauseToggle: () -> Unit,
     onSeekScene: (Int) -> Unit,
     onSelectEditorScene: (GeneratedSceneEntity) -> Unit,
@@ -275,38 +280,94 @@ fun VideoPlayerAndEditorView(
 
                     // 4. Presenter Avatar PiP (For "Your Face + Voice")
                     if (tutorial.presentationType == "FACE_AND_VOICE") {
-                        val presenterResId = remember {
-                            val id = context.resources.getIdentifier("demo_presenter", "drawable", context.packageName)
-                            if (id != 0) id else 0
-                        }
+                        val avatarShape = if (presenterFraming == "window") RoundedCornerShape(8.dp) else CircleShape
 
-                        Card(
-                            shape = CircleShape,
-                            border = androidx.compose.foundation.BorderStroke(2.dp, Indigo500),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                        // Speaking wave animation when video is playing
+                        val infiniteTransition = rememberInfiniteTransition(label = "speech")
+                        val borderAlpha by infiniteTransition.animateFloat(
+                            initialValue = 0.5f,
+                            targetValue = 1.0f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(600, easing = LinearEasing),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "borderGlow"
+                        )
+
+                        Column(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
-                                .padding(12.dp)
-                                .size(64.dp)
+                                .padding(12.dp),
+                            horizontalAlignment = Alignment.End,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            if (presenterResId != 0) {
-                                Image(
-                                    painter = painterResource(id = presenterResId),
-                                    contentDescription = "Presenter Likeness",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            } else {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(Indigo600),
-                                    contentAlignment = Alignment.Center
+                            Card(
+                                shape = avatarShape,
+                                border = androidx.compose.foundation.BorderStroke(
+                                    2.dp,
+                                    if (isPlaying) Cyan400.copy(alpha = borderAlpha) else Cyan400
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                                modifier = Modifier.size(68.dp)
+                            ) {
+                                if (presenterFaceUri != null) {
+                                    AsyncImage(
+                                        model = presenterFaceUri,
+                                        contentDescription = "Virtual Me Avatar",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    val presenterResId = remember {
+                                        val id = context.resources.getIdentifier("demo_presenter", "drawable", context.packageName)
+                                        if (id != 0) id else 0
+                                    }
+                                    if (presenterResId != 0) {
+                                        Image(
+                                            painter = painterResource(id = presenterResId),
+                                            contentDescription = "Presenter Likeness",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(Indigo600),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Person,
+                                                contentDescription = null,
+                                                tint = Color.White
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Presenter Badge
+                            Surface(
+                                color = Slate950.copy(alpha = 0.85f),
+                                shape = RoundedCornerShape(4.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (hasClonedVoice) Emerald400 else Cyan500)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Person,
-                                        contentDescription = null,
-                                        tint = Color.White
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(if (isPlaying) Emerald400 else Slate400)
+                                    )
+                                    Text(
+                                        text = if (presenterFaceUri != null) "Virtual Me" else "AI Presenter",
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (hasClonedVoice) Emerald300 else Cyan300
                                     )
                                 }
                             }

@@ -32,6 +32,9 @@ fun ReviewTutorialScreen(
     narrationLang: String,
     subtitleLang: String,
     steps: List<TutorialStepEntity>,
+    presenterFaceUri: String? = null,
+    hasClonedVoice: Boolean = false,
+    clonedVoiceName: String = "",
     onGenerateClick: () -> Unit,
     onBackToStepsClick: () -> Unit
 ) {
@@ -68,6 +71,66 @@ fun ReviewTutorialScreen(
                     fontSize = 12.sp,
                     color = Slate300
                 )
+            }
+        }
+
+        // Virtual Me Deepfake Clone Spec Box (if Face + Voice)
+        if (presentationType == "FACE_AND_VOICE") {
+            Card(
+                shape = RoundedCornerShape(10.dp),
+                colors = CardDefaults.cardColors(containerColor = Slate950),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Cyan400),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, Cyan400, CircleShape)
+                            .background(Slate800),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (presenterFaceUri != null) {
+                            coil.compose.AsyncImage(
+                                model = presenterFaceUri,
+                                contentDescription = "Virtual Me",
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Icon(Icons.Default.Face, contentDescription = null, tint = Cyan400, modifier = Modifier.size(30.dp))
+                        }
+                    }
+
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                text = "Virtual Presenter Clone Active",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Slate100
+                            )
+                            Surface(color = Cyan500.copy(alpha = 0.2f), shape = RoundedCornerShape(3.dp)) {
+                                Text("DEEPFAKE", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Cyan400, modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp))
+                            }
+                        }
+                        Text(
+                            text = if (presenterFaceUri != null) "✓ Uploaded Face Likeness mapped" else "Default Presenter Likeness",
+                            fontSize = 11.sp,
+                            color = Slate300
+                        )
+                        Text(
+                            text = if (hasClonedVoice) "✓ Cloned Voice: $clonedVoiceName" else "Voice: $voiceName",
+                            fontSize = 11.sp,
+                            color = if (hasClonedVoice) Emerald400 else Slate400
+                        )
+                    }
+                }
             }
         }
 

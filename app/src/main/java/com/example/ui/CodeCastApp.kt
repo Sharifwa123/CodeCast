@@ -1,6 +1,10 @@
 package com.example.ui
 
+import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -13,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -31,10 +36,42 @@ fun CodeCastApp(
     viewModel: CodeCastViewModel,
     repository: CodeCastRepository
 ) {
+    val context = LocalContext.current
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showVersionDialog by remember { mutableStateOf(false) }
     var showKnowledgeScreen by remember { mutableStateOf(false) }
+
+    // Activity Result Launchers
+    val zipLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            viewModel.handleZipFileUri(context, uri)
+        }
+    }
+
+    val facePhotoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            viewModel.setPresenterFaceUri(uri.toString())
+        }
+    }
+
+    val audioLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            viewModel.setVoiceAudioSampleUri(uri.toString())
+        }
+    }
+
+    val micPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        viewModel.startVoiceRecording()
+    }
 
     LaunchedEffect(state.notificationMessage) {
         state.notificationMessage?.let {
@@ -142,9 +179,16 @@ fun CodeCastApp(
                             repoSourceOption = state.repoSourceOption,
                             projectNameInput = state.projectNameInput,
                             repoUrlInput = state.repoUrlInput,
+                            uploadedZipFileName = state.uploadedZipFileName,
+                            uploadedZipFileSize = state.uploadedZipFileSize,
+                            uploadedZipEntryCount = state.uploadedZipEntryCount,
+                            uploadedZipFramework = state.uploadedZipFramework,
                             onRepoSourceChange = { viewModel.setRepoSourceOption(it) },
                             onProjectNameChange = { viewModel.setProjectNameInput(it) },
                             onRepoUrlChange = { viewModel.setRepoUrlInput(it) },
+                            onPickZipFile = { zipLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed", "*/*")) },
+                            onSelectSampleZip = { f, fw, cnt, sz -> viewModel.selectSampleZip(f, fw, cnt, sz) },
+                            onClearZip = { viewModel.clearUploadedZip() },
                             onContinueClick = { viewModel.createAndAnalyzeProject(state.repoSourceOption) },
                             onQuickDemoClick = { viewModel.loadBuiltInDemo() }
                         )
@@ -219,10 +263,29 @@ fun CodeCastApp(
                             selectedPresentationType = state.presentationType,
                             selectedPresenterOption = state.presenterOption,
                             presenterLikenessConsent = state.presenterLikenessConsent,
+                            presenterFaceUri = state.presenterFaceUri,
+                            presenterAvatarPreset = state.presenterAvatarPreset,
+                            presenterFraming = state.presenterFraming,
+                            presenterPosition = state.presenterPosition,
+                            hasClonedVoice = state.hasClonedVoice,
+                            clonedVoiceName = state.clonedVoiceName,
+                            isRecordingVoice = state.isRecordingVoice,
+                            recordingDurationSec = state.recordingDurationSec,
+                            clonedVoicePitch = state.clonedVoicePitch,
+                            isTestingVoiceAudio = state.isTestingVoiceAudio,
                             onSelectDuration = { viewModel.setDuration(it) },
                             onSelectPresentationType = { viewModel.setPresentationType(it) },
                             onSelectPresenterOption = { viewModel.setPresenterOption(it) },
                             onToggleConsent = { viewModel.setPresenterLikenessConsent(it) },
+                            onPickFacePhoto = { facePhotoLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                            onSelectPresetAvatar = { viewModel.setPresenterAvatarPreset(it) },
+                            onSetFraming = { viewModel.setPresenterFraming(it) },
+                            onSetPosition = { viewModel.setPresenterPosition(it) },
+                            onStartRecordVoice = { micPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO) },
+                            onStopRecordVoice = { viewModel.stopVoiceRecording() },
+                            onPickAudioFile = { audioLauncher.launch(arrayOf("audio/*", "*/*")) },
+                            onTuneVoicePitch = { viewModel.setClonedVoicePitch(it) },
+                            onTestVoicePreview = { viewModel.testPlayVoiceSample() },
                             onContinueClick = { viewModel.goToStep(WizardStep.CHOOSE_VOICE) }
                         )
                     }
@@ -240,6 +303,8 @@ fun CodeCastApp(
                             hasSubtitles = state.hasSubtitles,
                             subtitleStyle = state.subtitleStyle,
                             subtitlePosition = state.subtitlePosition,
+                            hasClonedVoice = state.hasClonedVoice,
+                            clonedVoiceName = state.clonedVoiceName,
                             onVoiceChange = { name, gender, accent, style, speed ->
                                 viewModel.setVoiceSettings(name, gender, accent, style, speed)
                             },
@@ -293,6 +358,9 @@ fun CodeCastApp(
                             narrationLang = state.narrationLang,
                             subtitleLang = state.subtitleLang,
                             steps = state.stepsList,
+                            presenterFaceUri = state.presenterFaceUri,
+                            hasClonedVoice = state.hasClonedVoice,
+                            clonedVoiceName = state.clonedVoiceName,
                             onGenerateClick = { viewModel.startVideoGeneration() },
                             onBackToStepsClick = { viewModel.goToStep(WizardStep.SELECT_STEPS) }
                         )
@@ -320,6 +388,10 @@ fun CodeCastApp(
                                     playbackSecond = state.playbackSecond,
                                     isPlaying = state.isPlaying,
                                     selectedScene = state.selectedEditorScene,
+                                    presenterFaceUri = state.presenterFaceUri,
+                                    presenterFraming = state.presenterFraming,
+                                    hasClonedVoice = state.hasClonedVoice,
+                                    clonedVoiceName = state.clonedVoiceName,
                                     onPlayPauseToggle = { viewModel.togglePlayPause() },
                                     onSeekScene = { viewModel.seekToScene(it) },
                                     onSelectEditorScene = { viewModel.selectEditorScene(it) },
