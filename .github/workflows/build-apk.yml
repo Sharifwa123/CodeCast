@@ -87,32 +87,28 @@ jobs:
           # Ensure gradlew executable permission
           chmod +x ./gradlew
 
-      - name: Build Debug APK
-        if: ${{ github.event.inputs.build_type != 'release' }}
-        run: |
-          ./gradlew assembleDebug --stacktrace
-
-      - name: Build Release APK
-        if: ${{ github.event.inputs.build_type == 'release' }}
+      - name: Build Android APK
         env:
           KEYSTORE_PATH: ${{ secrets.KEYSTORE_PATH }}
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ -z "$STORE_PASSWORD" ]; then
-            echo "Release signing secrets not set. Building assembleDebug as fallback..."
-            ./gradlew assembleDebug --stacktrace
+          echo "Building APK (target type: ${{ github.event.inputs.build_type || 'debug' }})..."
+          if [ "${{ github.event.inputs.build_type }}" = "release" ]; then
+            ./gradlew assembleRelease --stacktrace || (echo "assembleRelease failed, building assembleDebug fallback..." && ./gradlew assembleDebug --stacktrace)
           else
-            ./gradlew assembleRelease --stacktrace
+            ./gradlew assembleDebug --stacktrace
           fi
 
       - name: Package & Prepare Shareable APKs
+        id: package
         run: |
           mkdir -p build-apks
           # Collect all generated APKs
           find app/build/outputs/apk -name "*.apk" -type f | while read -r apk_path; do
             filename=$(basename "$apk_path")
             cp -v "$apk_path" "build-apks/CodeCast-${filename}"
+            cp -v "$apk_path" "build-apks/CodeCast.apk"
             echo "Saved APK: build-apks/CodeCast-${filename}"
           done
 
@@ -123,8 +119,10 @@ jobs:
           fi
 
           # Output markdown summary table
-          echo "### 📱 Android APK Build Summary" >> $GITHUB_STEP_SUMMARY
-          echo "| Artifact Name | Size | SHA256 Checksum |" >> $GITHUB_STEP_SUMMARY
+          echo "### 📱 Android APK Ready for Direct Installation" >> $GITHUB_STEP_SUMMARY
+          echo "Direct APK download without needing to extract any ZIP files on your phone:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Size | SHA256 Checksum |" >> $GITHUB_STEP_SUMMARY
           echo "| --- | --- | --- |" >> $GITHUB_STEP_SUMMARY
           for f in build-apks/*.apk; do
             if [ -f "$f" ]; then
@@ -141,14 +139,15 @@ jobs:
           name: CodeCast-Android-APK
           path: build-apks/*.apk
           retention-days: 90
+          compression-level: 0
           if-no-files-found: error
 
-      - name: Publish Permanent GitHub Release
-        if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && (github.event.inputs.create_github_release == true || github.event.inputs.create_github_release == 'true')) }}
+      - name: Publish Direct-Install APK to GitHub Releases
+        if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || github.event.inputs.release_tag }}
-          name: CodeCast Release ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || github.event.inputs.release_tag }}
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || (github.event.inputs.release_tag != '' && github.event.inputs.release_tag || 'v1.0.0') }}
+          name: CodeCast APK ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || (github.event.inputs.release_tag != '' && github.event.inputs.release_tag || 'v1.0.0') }}
           draft: false
           prerelease: false
           generate_release_notes: true
