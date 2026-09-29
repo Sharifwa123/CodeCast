@@ -23,6 +23,7 @@ import com.example.ui.theme.*
 @Composable
 fun ProjectKnowledgeScreen(
     project: ProjectEntity?,
+    onExploreCodeClick: (() -> Unit)? = null,
     onBackClick: () -> Unit
 ) {
     val scrollState = rememberScrollState()
@@ -43,7 +44,7 @@ fun ProjectKnowledgeScreen(
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     text = "PERSISTENT PROJECT KNOWLEDGE LAYER",
@@ -57,6 +58,19 @@ fun ProjectKnowledgeScreen(
                     fontSize = 12.sp,
                     color = Slate300
                 )
+
+                if (onExploreCodeClick != null) {
+                    Button(
+                        onClick = onExploreCodeClick,
+                        colors = ButtonDefaults.buttonColors(containerColor = Indigo600),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(top = 4.dp)
+                    ) {
+                        Icon(Icons.Default.Code, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Browse Verified Source Code Files", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
 

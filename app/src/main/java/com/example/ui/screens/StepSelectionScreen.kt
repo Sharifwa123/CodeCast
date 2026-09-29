@@ -37,6 +37,7 @@ fun StepSelectionScreen(
     onUpdateStep: (id: Int, title: String, instruction: String) -> Unit,
     onAddManualStep: (screen: String, action: String, title: String, instruction: String) -> Unit,
     onInspectEvidence: (TutorialStepEntity?) -> Unit,
+    onExploreCode: ((String) -> Unit)? = null,
     onContinueClick: () -> Unit
 ) {
     val scrollState = rememberScrollState()
@@ -357,6 +358,7 @@ fun StepSelectionScreen(
     inspectingEvidenceStep?.let { step ->
         EvidenceBottomSheet(
             step = step,
+            onExploreCode = onExploreCode,
             onDismiss = { onInspectEvidence(null) }
         )
     }

@@ -101,7 +101,8 @@ fun CodeCastApp(
                     projectName = state.selectedProject?.name,
                     activeVersion = state.selectedProject?.activeVersion,
                     onDemoClick = { viewModel.loadBuiltInDemo() },
-                    onVersionClick = { showVersionDialog = true }
+                    onVersionClick = { showVersionDialog = true },
+                    onExploreCodeClick = { viewModel.openCodebaseExplorer() }
                 )
 
                 if (!showKnowledgeScreen && state.currentStep != WizardStep.VIDEO_PREVIEW_EDITOR) {
@@ -170,6 +171,7 @@ fun CodeCastApp(
             if (showKnowledgeScreen) {
                 ProjectKnowledgeScreen(
                     project = state.selectedProject,
+                    onExploreCodeClick = { viewModel.openCodebaseExplorer() },
                     onBackClick = { showKnowledgeScreen = false }
                 )
             } else {
@@ -189,6 +191,7 @@ fun CodeCastApp(
                             onPickZipFile = { zipLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed", "*/*")) },
                             onSelectSampleZip = { f, fw, cnt, sz -> viewModel.selectSampleZip(f, fw, cnt, sz) },
                             onClearZip = { viewModel.clearUploadedZip() },
+                            onExploreCode = { viewModel.openCodebaseExplorer() },
                             onContinueClick = { viewModel.createAndAnalyzeProject(state.repoSourceOption) },
                             onQuickDemoClick = { viewModel.loadBuiltInDemo() }
                         )
@@ -243,6 +246,7 @@ fun CodeCastApp(
                             onUpdateStep = { id, title, inst -> viewModel.updateStepTitleAndInstruction(id, title, inst) },
                             onAddManualStep = { screen, act, title, inst -> viewModel.addManualStep(screen, act, title, inst) },
                             onInspectEvidence = { viewModel.setEvidenceInspectionStep(it) },
+                            onExploreCode = { path -> viewModel.openCodeFileByPath(path) },
                             onContinueClick = { viewModel.goToStep(WizardStep.CHOOSE_AUDIENCE) }
                         )
                     }
@@ -392,6 +396,7 @@ fun CodeCastApp(
                                     presenterFraming = state.presenterFraming,
                                     hasClonedVoice = state.hasClonedVoice,
                                     clonedVoiceName = state.clonedVoiceName,
+                                    onExploreCodeFile = { path -> viewModel.openCodeFileByPath(path) },
                                     onPlayPauseToggle = { viewModel.togglePlayPause() },
                                     onSeekScene = { viewModel.seekToScene(it) },
                                     onSelectEditorScene = { viewModel.selectEditorScene(it) },
@@ -443,6 +448,15 @@ fun CodeCastApp(
             versions = state.versionsList,
             onDismiss = { showVersionDialog = false },
             onApplyUpdate = { viewModel.applyVersionUpdate() }
+        )
+    }
+
+    // Codebase Explorer Dialog
+    if (state.showCodebaseExplorer) {
+        CodebaseExplorerDialog(
+            files = state.extractedCodeFiles,
+            initialSelectedFile = state.selectedCodeFile,
+            onDismiss = { viewModel.closeCodebaseExplorer() }
         )
     }
 }

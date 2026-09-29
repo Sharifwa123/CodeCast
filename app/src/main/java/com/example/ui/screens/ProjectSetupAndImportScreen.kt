@@ -45,6 +45,7 @@ fun ProjectSetupAndImportScreen(
     onPickZipFile: () -> Unit = {},
     onSelectSampleZip: (fileName: String, framework: String, filesCount: Int, sizeStr: String) -> Unit = { _, _, _, _ -> },
     onClearZip: () -> Unit = {},
+    onExploreCode: (() -> Unit)? = null,
     onContinueClick: () -> Unit,
     onQuickDemoClick: () -> Unit
 ) {
@@ -345,15 +346,34 @@ fun ProjectSetupAndImportScreen(
                                         }
                                     }
 
-                                    OutlinedButton(
-                                        onClick = onPickZipFile,
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Indigo400),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, Indigo500.copy(alpha = 0.5f)),
-                                        modifier = Modifier.fillMaxWidth()
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Replace with another ZIP", fontSize = 11.sp)
+                                        if (onExploreCode != null) {
+                                            Button(
+                                                onClick = onExploreCode,
+                                                colors = ButtonDefaults.buttonColors(containerColor = Indigo600),
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                                                modifier = Modifier.weight(1.2f).defaultMinSize(minHeight = 36.dp)
+                                            ) {
+                                                Icon(Icons.Default.Code, contentDescription = null, modifier = Modifier.size(15.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Inspect Code", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+
+                                        OutlinedButton(
+                                            onClick = onPickZipFile,
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Indigo400),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, Indigo500.copy(alpha = 0.5f)),
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                                            modifier = Modifier.weight(1f).defaultMinSize(minHeight = 36.dp)
+                                        ) {
+                                            Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(15.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Replace ZIP", fontSize = 11.sp)
+                                        }
                                     }
                                 }
                             }

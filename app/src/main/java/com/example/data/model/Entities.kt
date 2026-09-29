@@ -70,7 +70,9 @@ data class TutorialStepEntity(
     val verificationStatus: String, // "RUNTIME_VERIFIED", "CODE_VERIFIED", "INFERRED", "UNABLE_TO_VERIFY"
     val evidenceSource: String = "",
     val evidenceElement: String = "",
-    val isChecked: Boolean = true
+    val isChecked: Boolean = true,
+    val codeSnippet: String = "",
+    val codeFilePath: String = ""
 )
 
 @Entity(tableName = "generated_scenes")
@@ -85,7 +87,11 @@ data class GeneratedSceneEntity(
     val durationSeconds: Int = 8,
     val zoomTarget: String = "Center",
     val calloutText: String = "",
-    val transitionType: String = "Smooth Fade"
+    val transitionType: String = "Smooth Fade",
+    val codeFilePath: String = "",
+    val codeSnippet: String = "",
+    val highlightedLines: String = "1,2",
+    val terminalOutput: String = ""
 )
 
 @Entity(tableName = "project_versions")

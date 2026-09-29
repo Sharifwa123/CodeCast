@@ -7,8 +7,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -27,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.model.GeneratedSceneEntity
@@ -45,6 +48,7 @@ fun VideoPlayerAndEditorView(
     presenterFraming: String = "circle",
     hasClonedVoice: Boolean = false,
     clonedVoiceName: String = "",
+    onExploreCodeFile: ((String) -> Unit)? = null,
     onPlayPauseToggle: () -> Unit,
     onSeekScene: (Int) -> Unit,
     onSelectEditorScene: (GeneratedSceneEntity) -> Unit,
@@ -53,6 +57,7 @@ fun VideoPlayerAndEditorView(
     onExportRequested: (format: String) -> Unit
 ) {
     val activeScene = scenes.getOrNull(currentSceneIndex) ?: scenes.firstOrNull()
+    var stageMode by remember { mutableStateOf("SPLIT") }
 
     Column(
         modifier = Modifier
@@ -97,32 +102,37 @@ fun VideoPlayerAndEditorView(
                         )
                     }
 
+                    // Stage Mode Switcher (Code | Split | UI)
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Surface(
-                            color = Slate800,
-                            shape = RoundedCornerShape(4.dp)
-                        ) {
-                            Text(
-                                text = "${tutorial.presentationType.replace('_', ' ')}",
-                                fontSize = 9.sp,
-                                color = Cyan400,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                        Surface(
-                            color = Slate800,
-                            shape = RoundedCornerShape(4.dp)
-                        ) {
-                            Text(
-                                text = "Subtitles: ${tutorial.subtitleLang}",
-                                fontSize = 9.sp,
-                                color = Slate300,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
+                        listOf(
+                            Triple("CODE", "Code", Icons.Default.Code),
+                            Triple("SPLIT", "Split", Icons.Default.ViewSidebar),
+                            Triple("UI", "App UI", Icons.Default.LaptopMac)
+                        ).forEach { (mode, label, icon) ->
+                            val isSel = stageMode == mode
+                            Surface(
+                                onClick = { stageMode = mode },
+                                shape = RoundedCornerShape(4.dp),
+                                color = if (isSel) Indigo600 else Slate800,
+                                modifier = Modifier.testTag("stage_mode_${mode.lowercase()}")
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                ) {
+                                    Icon(icon, contentDescription = null, tint = if (isSel) Color.White else Slate400, modifier = Modifier.size(11.dp))
+                                    Text(
+                                        text = label,
+                                        fontSize = 9.sp,
+                                        fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSel) Color.White else Slate300
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -142,38 +152,69 @@ fun VideoPlayerAndEditorView(
                         if (id != 0) id else 0
                     }
 
-                    // Background UI Screen
-                    if (drawableResId != 0) {
-                        Image(
-                            painter = painterResource(id = drawableResId),
-                            contentDescription = activeScene?.title ?: "Application Screen",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(Slate900, Slate850)
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Default.LaptopMac,
-                                    contentDescription = null,
-                                    tint = Indigo400,
-                                    modifier = Modifier.size(48.dp)
+                    when (stageMode) {
+                        "CODE" -> {
+                            VideoSceneCodeStage(scene = activeScene, isPlaying = isPlaying)
+                        }
+                        "SPLIT" -> {
+                            Row(modifier = Modifier.fillMaxSize()) {
+                                Box(modifier = Modifier.weight(0.53f).fillMaxHeight()) {
+                                    VideoSceneCodeStage(scene = activeScene, isPlaying = isPlaying)
+                                }
+                                Box(modifier = Modifier.weight(0.47f).fillMaxHeight()) {
+                                    if (drawableResId != 0) {
+                                        Image(
+                                            painter = painterResource(id = drawableResId),
+                                            contentDescription = activeScene?.title ?: "Application Screen",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Slate900, Slate850))),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(text = activeScene?.title ?: "Live UI", color = Slate200, fontSize = 11.sp)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        else -> {
+                            // Background UI Screen
+                            if (drawableResId != 0) {
+                                Image(
+                                    painter = painterResource(id = drawableResId),
+                                    contentDescription = activeScene?.title ?: "Application Screen",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = activeScene?.title ?: "Screen View",
-                                    color = Slate200,
-                                    fontWeight = FontWeight.SemiBold
-                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(
+                                            Brush.linearGradient(
+                                                listOf(Slate900, Slate850)
+                                            )
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            imageVector = Icons.Default.LaptopMac,
+                                            contentDescription = null,
+                                            tint = Indigo400,
+                                            modifier = Modifier.size(48.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = activeScene?.title ?: "Screen View",
+                                            color = Slate200,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -400,6 +441,51 @@ fun VideoPlayerAndEditorView(
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                             )
+                        }
+                    }
+                }
+
+                // Source Code Bar & Inspector Trigger
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Slate900.copy(alpha = 0.95f))
+                        .border(androidx.compose.foundation.BorderStroke(1.dp, Slate800))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.IntegrationInstructions, contentDescription = null, tint = Cyan400, modifier = Modifier.size(13.dp))
+                        Text(
+                            text = "Scene Code: ${activeScene?.codeFilePath?.ifEmpty { "src/app/page.tsx" }}",
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = Slate200,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    if (onExploreCodeFile != null) {
+                        Surface(
+                            onClick = { onExploreCodeFile(activeScene?.codeFilePath ?: "src/app/page.tsx") },
+                            shape = RoundedCornerShape(4.dp),
+                            color = Indigo600,
+                            modifier = Modifier.testTag("inspect_scene_code_btn")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(Icons.Default.Code, contentDescription = null, tint = Color.White, modifier = Modifier.size(11.dp))
+                                Text("Inspect Full File", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
                         }
                     }
                 }
@@ -738,6 +824,139 @@ fun VideoPlayerAndEditorView(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("Share", fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Composable
+fun VideoSceneCodeStage(
+    scene: GeneratedSceneEntity?,
+    isPlaying: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val codePath = scene?.codeFilePath?.ifEmpty { "src/app/api/auth/register/route.ts" } ?: "src/app/page.tsx"
+    val snippet = scene?.codeSnippet?.ifEmpty {
+        "export async function handleAction() {\n  // Implementation code\n  const res = await api.execute();\n  return res;\n}"
+    } ?: ""
+    val lines = remember(snippet) { snippet.lines() }
+    val highlightedSet = remember(scene?.highlightedLines) {
+        scene?.highlightedLines?.split(",")?.mapNotNull { it.trim().toIntOrNull() }?.toSet() ?: setOf(1, 2)
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xFF0B132B))
+    ) {
+        // Tab Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFF1C2541))
+                .padding(horizontal = 8.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(Icons.Default.Code, contentDescription = null, tint = Cyan400, modifier = Modifier.size(12.dp))
+                Text(
+                    text = codePath,
+                    fontSize = 9.5.sp,
+                    fontFamily = FontFamily.Monospace,
+                    color = Slate200,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Surface(color = Color(0xFF0B132B), shape = RoundedCornerShape(3.dp)) {
+                Text(
+                    text = "${lines.size} lines",
+                    fontSize = 8.sp,
+                    color = Slate400,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                )
+            }
+        }
+
+        // Code Editor Lines Viewport
+        Box(modifier = Modifier.weight(1f)) {
+            val vScroll = rememberScrollState()
+            Row(modifier = Modifier.fillMaxSize().verticalScroll(vScroll)) {
+                // Line numbers gutter
+                Column(
+                    modifier = Modifier
+                        .background(Color(0xFF141D35))
+                        .padding(horizontal = 6.dp, vertical = 4.dp)
+                ) {
+                    lines.indices.forEach { idx ->
+                        val lineNum = idx + 1
+                        val isHl = highlightedSet.contains(lineNum)
+                        Text(
+                            text = "$lineNum",
+                            fontSize = 8.5.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = if (isHl) Cyan400 else Slate600,
+                            fontWeight = if (isHl) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                }
+
+                // Code lines with syntax highlighting
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 6.dp, vertical = 4.dp)
+                ) {
+                    lines.forEachIndexed { idx, line ->
+                        val lineNum = idx + 1
+                        val isHl = highlightedSet.contains(lineNum)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(if (isHl) Color(0xFF38BDF8).copy(alpha = 0.16f) else Color.Transparent)
+                                .padding(vertical = 0.5.dp)
+                        ) {
+                            Text(
+                                text = highlightSyntax(line),
+                                fontSize = 8.5.sp,
+                                fontFamily = FontFamily.Monospace,
+                                lineHeight = 12.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Terminal Drawer at bottom
+        if (scene?.terminalOutput?.isNotEmpty() == true) {
+            Surface(
+                color = Color(0xFF030712),
+                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF1F2937))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(Icons.Default.Terminal, contentDescription = null, tint = Emerald400, modifier = Modifier.size(10.dp))
+                    Text(
+                        text = scene.terminalOutput,
+                        fontSize = 8.sp,
+                        fontFamily = FontFamily.Monospace,
+                        color = Emerald300,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }

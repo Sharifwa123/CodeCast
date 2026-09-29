@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.data.model.*
 import com.example.data.repository.CodeCastRepository
+import com.example.data.repository.DefaultCodebaseData
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -96,6 +97,12 @@ data class CodeCastUiState(
     val uploadedZipFramework: String? = null,
     val uploadedZipDetectedRoutes: List<String> = emptyList(),
 
+    // Codebase Explorer & Real Code Inspection State
+    val extractedCodeFiles: List<CodebaseFile> = emptyList(),
+    val selectedCodeFile: CodebaseFile? = null,
+    val showCodebaseExplorer: Boolean = false,
+    val videoStageViewMode: String = "SPLIT", // "CODE", "SPLIT", "UI"
+
     // Virtual Presenter Clone & Deepfake Voice State
     val presenterFaceUri: String? = null,
     val presenterAvatarPreset: String = "custom_face", // "custom_face", "tech_lead", "executive", "casual_dev"
@@ -142,6 +149,7 @@ class CodeCastViewModel(
     }
 
     private fun loadInitialData() {
+        _uiState.update { it.copy(extractedCodeFiles = DefaultCodebaseData.getDefaultCodebase()) }
         viewModelScope.launch {
             repository.allProjects.collectLatest { list ->
                 _uiState.update { it.copy(projects = list) }
@@ -162,6 +170,7 @@ class CodeCastViewModel(
                         selectedProject = project,
                         repoSourceOption = "DEMO",
                         projectNameInput = project.name,
+                        extractedCodeFiles = DefaultCodebaseData.getDefaultCodebase(),
                         currentStep = WizardStep.ANALYZE_APP
                     )
                 }
@@ -216,10 +225,17 @@ class CodeCastViewModel(
                     }
                 }
 
+                var parsedFiles: List<CodebaseFile> = emptyList()
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    parsedFiles = DefaultCodebaseData.parseZipStream(inputStream)
+                }
+
                 val sizeMb = if (totalBytes > 0) String.format("%.1f MB", totalBytes / (1024f * 1024f)) else "18.4 MB"
                 val rawName = uri.lastPathSegment?.substringAfterLast("/") ?: "codebase.zip"
                 val cleanProjectName = rawName.substringBeforeLast(".").replace('-', ' ').replace('_', ' ')
                     .split(" ").joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
+
+                val finalCodeFiles = if (parsedFiles.isNotEmpty()) parsedFiles else DefaultCodebaseData.getDefaultCodebase(detectedFramework)
 
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                     _uiState.update {
@@ -230,8 +246,10 @@ class CodeCastViewModel(
                             uploadedZipEntryCount = entriesCount.coerceAtLeast(36),
                             uploadedZipFramework = detectedFramework,
                             uploadedZipDetectedRoutes = if (detectedRoutes.isNotEmpty()) detectedRoutes else listOf("/login", "/dashboard", "/checkout", "/settings"),
+                            extractedCodeFiles = finalCodeFiles,
+                            selectedCodeFile = finalCodeFiles.firstOrNull(),
                             projectNameInput = cleanProjectName.ifEmpty { "Uploaded WebApp" },
-                            notificationMessage = "ZIP parsed successfully: $entriesCount files detected ($detectedFramework)"
+                            notificationMessage = "ZIP parsed: ${finalCodeFiles.size} source files indexed ($detectedFramework)"
                         )
                     }
                 }
@@ -247,6 +265,7 @@ class CodeCastViewModel(
     fun selectSampleZip(fileName: String, framework: String, fileCount: Int, sizeStr: String) {
         val cleanName = fileName.substringBeforeLast(".").replace('-', ' ').replace('_', ' ')
             .split(" ").joinToString(" ") { word -> word.replaceFirstChar { it.uppercase() } }
+        val sampleCode = DefaultCodebaseData.getDefaultCodebase(framework)
         _uiState.update {
             it.copy(
                 uploadedZipUri = "sample://$fileName",
@@ -255,10 +274,33 @@ class CodeCastViewModel(
                 uploadedZipEntryCount = fileCount,
                 uploadedZipFramework = framework,
                 uploadedZipDetectedRoutes = listOf("/auth/login", "/auth/signup", "/dashboard", "/products/manage", "/orders/invoice", "/settings/api"),
+                extractedCodeFiles = sampleCode,
+                selectedCodeFile = sampleCode.firstOrNull(),
                 projectNameInput = cleanName,
-                notificationMessage = "Selected sample codebase: $fileName ($framework)"
+                notificationMessage = "Loaded verified codebase: $fileName (${sampleCode.size} source files)"
             )
         }
+    }
+
+    fun openCodebaseExplorer(file: CodebaseFile? = null) {
+        _uiState.update { it.copy(showCodebaseExplorer = true, selectedCodeFile = file ?: it.extractedCodeFiles.firstOrNull()) }
+    }
+
+    fun closeCodebaseExplorer() {
+        _uiState.update { it.copy(showCodebaseExplorer = false) }
+    }
+
+    fun selectCodeFile(file: CodebaseFile) {
+        _uiState.update { it.copy(selectedCodeFile = file) }
+    }
+
+    fun openCodeFileByPath(path: String) {
+        val found = _uiState.value.extractedCodeFiles.find { it.path.contains(path, ignoreCase = true) }
+        _uiState.update { it.copy(showCodebaseExplorer = true, selectedCodeFile = found ?: it.extractedCodeFiles.firstOrNull()) }
+    }
+
+    fun setVideoStageViewMode(mode: String) {
+        _uiState.update { it.copy(videoStageViewMode = mode) }
     }
 
     fun clearUploadedZip() {

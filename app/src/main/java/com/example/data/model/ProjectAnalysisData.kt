@@ -14,6 +14,18 @@ data class DetectedWorkflow(
     val defaultSteps: List<WorkflowStepData>
 )
 
+data class CodebaseFile(
+    val path: String,
+    val language: String,
+    val lineCount: Int,
+    val sizeBytes: Long,
+    val content: String,
+    val exportedSymbols: List<String> = emptyList(),
+    val category: String = "Source" // "Frontend", "Backend", "Config", "Database"
+)
+
+data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
+
 data class WorkflowStepData(
     val title: String,
     val screenName: String,
@@ -22,7 +34,10 @@ data class WorkflowStepData(
     val verificationStatus: String, // "RUNTIME_VERIFIED", "CODE_VERIFIED", "INFERRED", "UNABLE_TO_VERIFY"
     val evidenceSource: String,
     val evidenceElement: String,
-    val screenDrawable: String = "demo_screen_auth"
+    val screenDrawable: String = "demo_screen_auth",
+    val codeFilePath: String = "",
+    val codeSnippet: String = "",
+    val highlightedLines: String = "1,2,3"
 )
 
 data class QualityCheckIssue(

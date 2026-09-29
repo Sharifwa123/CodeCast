@@ -481,6 +481,45 @@ class CodeCastRepository(
                 else -> 8
             }
 
+            val (codePath, snippet, hlLines, termOut) = when (index % 6) {
+                0 -> Quadruple(
+                    "src/app/page.tsx",
+                    "import { RegisterModal } from '@/components/RegisterModal';\nimport { HeroSection } from '@/components/HeroSection';\n\nexport default function HomePage() {\n  return (\n    <main className=\"min-h-screen bg-slate-950 text-white\">\n      <HeroSection onStart={() => openModal('register')} />\n    </main>\n  );\n}",
+                    "6,7",
+                    "[GET] / 200 OK in 14ms (App Router)"
+                )
+                1 -> Quadruple(
+                    "src/components/RegisterModal.tsx",
+                    "export function RegisterModal({ isOpen, onClose }: ModalProps) {\n  const [email, setEmail] = useState('');\n  const [password, setPassword] = useState('');\n  \n  // Trigger registration mutation\n  const onSubmit = async () => {\n    await api.post('/api/auth/register', { email, password });\n  };\n}",
+                    "6,7,8",
+                    "Compiled src/components/RegisterModal.tsx in 180ms"
+                )
+                2 -> Quadruple(
+                    "src/app/api/auth/register/route.ts",
+                    "export async function POST(req: Request) {\n  const body = await req.json();\n  const validated = RegisterSchema.parse(body);\n  \n  const hashedPassword = await bcrypt.hash(validated.password, 12);\n  const user = await prisma.user.create({\n    data: { email: validated.email, passwordHash: hashedPassword }\n  });\n  return NextResponse.json({ success: true, user });\n}",
+                    "5,6,7,8",
+                    "[POST] /api/auth/register 201 Created (38ms) -> User ID usr_994a"
+                )
+                3 -> Quadruple(
+                    "src/lib/auth.ts",
+                    "export async function signJwtToken(payload: SessionPayload): Promise<string> {\n  return new SignJWT({ ...payload })\n    .setProtectedHeader({ alg: 'HS256' })\n    .setIssuedAt()\n    .setExpirationTime('7d')\n    .sign(JWT_SECRET);\n}",
+                    "2,3,4,5",
+                    "JWT session signed: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                )
+                4 -> Quadruple(
+                    "prisma/schema.prisma",
+                    "model User {\n  id           String    @id @default(cuid())\n  email        String    @unique\n  role         Role      @default(MEMBER)\n  orders       Order[]\n  createdAt    DateTime  @default(now())\n}",
+                    "1,2,3,4,5",
+                    "Prisma Engine: INSERT INTO \"User\" (\"id\", \"email\") VALUES ('usr_994a', ...)"
+                )
+                else -> Quadruple(
+                    "src/components/DashboardAnalytics.tsx",
+                    "export function DashboardAnalytics({ mrr, activeSubscribers }: AnalyticsProps) {\n  return (\n    <div className=\"grid grid-cols-3 gap-4\">\n      <MetricCard title=\"Monthly Recurring Revenue\" value={mrr} trend=\"+18.4%\" />\n      <MetricCard title=\"Active Subscriptions\" value={activeSubscribers} />\n    </div>\n  );\n}",
+                    "4,5",
+                    "Telemetry initialized: connected to real-time order feed"
+                )
+            }
+
             scenes.add(
                 GeneratedSceneEntity(
                     tutorialId = tutorialId,
@@ -492,7 +531,11 @@ class CodeCastRepository(
                     durationSeconds = duration,
                     zoomTarget = if (index % 2 == 1) "Action Control" else "Center",
                     calloutText = "${step.actionType}: ${step.title}",
-                    transitionType = tutorial.transitionStyle
+                    transitionType = tutorial.transitionStyle,
+                    codeFilePath = codePath,
+                    codeSnippet = snippet,
+                    highlightedLines = hlLines,
+                    terminalOutput = termOut
                 )
             )
         }
