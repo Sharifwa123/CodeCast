@@ -118,6 +118,13 @@ fun WorkflowStepperHeader(
     }
 }
 
+private data class VerificationBadgeStyle(
+    val label: String,
+    val bg: Color,
+    val fg: Color,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector
+)
+
 @Composable
 fun VerificationStatusBadge(status: String, modifier: Modifier = Modifier) {
     val style = when (status) {
