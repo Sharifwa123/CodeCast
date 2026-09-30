@@ -153,16 +153,48 @@ class WebRecorder(private val webView: WebView, private val profile: DeviceProfi
         .put("kind", s.kind).put("name", s.name).put("id", s.id).put("placeholder", s.placeholder)
         .put("type", s.type).put("label", s.label).put("text", s.text).put("submit", s.submit).put("index", s.index).toString()
 
-    /** Draws the current WebView contents (scaled) into [dst]. Must run on the main thread. */
-    fun capture(dst: Bitmap) {
+    private fun activityOf(ctx: android.content.Context): android.app.Activity? {
+        var c: android.content.Context? = ctx
+        while (c is android.content.ContextWrapper) { if (c is android.app.Activity) return c; c = c.baseContext }
+        return null
+    }
+
+    /**
+     * Copies what the WebView really shows on screen into [dst] (scaled). WebView content is GPU-rendered, so
+     * View.draw() often yields only the page background; PixelCopy reads the composited window instead.
+     * Returns true when the screen copy was used.
+     */
+    suspend fun capture(dst: Bitmap): Boolean = withContext(Dispatchers.Main) {
+        val act = activityOf(webView.context)
+        if (android.os.Build.VERSION.SDK_INT >= 26 && act != null && webView.isShown && webView.width > 8 && webView.height > 8) {
+            val loc = IntArray(2)
+            webView.getLocationInWindow(loc)
+            val decor = act.window.decorView
+            val rect = android.graphics.Rect(loc[0], loc[1], loc[0] + webView.width, loc[1] + webView.height)
+            if (rect.intersect(0, 0, decor.width, decor.height) && rect.width() > 8 && rect.height() > 8) {
+                val result = suspendCancellableCoroutine<Int> { cont ->
+                    try {
+                        android.view.PixelCopy.request(act.window, rect, dst, { r -> if (cont.isActive) cont.resume(r) }, android.os.Handler(android.os.Looper.getMainLooper()))
+                    } catch (e: Exception) { if (cont.isActive) cont.resume(-1) }
+                }
+                if (result == android.view.PixelCopy.SUCCESS) return@withContext true
+            }
+        }
         val c = Canvas(dst)
-        val vw = webView.width.coerceAtLeast(1)
-        val vh = webView.height.coerceAtLeast(1)
         c.drawColor(android.graphics.Color.WHITE)
         c.save()
-        c.scale(dst.width / vw.toFloat(), dst.height / vh.toFloat())
+        c.scale(dst.width / webView.width.coerceAtLeast(1).toFloat(), dst.height / webView.height.coerceAtLeast(1).toFloat())
         webView.draw(c)
         c.restore()
+        false
+    }
+
+    /** True when the sampled bitmap has (almost) one colour: nothing but a background was captured. */
+    fun looksBlank(b: Bitmap): Boolean {
+        val seen = HashSet<Int>()
+        var y = 0
+        while (y < b.height) { var x = 0; while (x < b.width) { seen.add(b.getPixel(x, y) and 0xFFFFFF); x += 12 }; y += 12 }
+        return seen.size <= 3
     }
 }
 
@@ -190,6 +222,8 @@ class RecordingSession(
     @Volatile var step: Int = 0
     @Volatile var totalSteps: Int = 1
     @Volatile var frameCount = 0
+    @Volatile var blankFrames = 0
+    @Volatile var screenCopyUsed = false
     @Volatile var encodeError: Throwable? = null
 
     val elapsedSec: Double get() = (SystemClock.elapsedRealtimeNanos() - startNs) / 1e9
@@ -228,7 +262,9 @@ class RecordingSession(
             while (true) {
                 val t0 = SystemClock.elapsedRealtime()
                 val bmp = Bitmap.createBitmap(profile.contentWidth, profile.contentHeight, Bitmap.Config.ARGB_8888)
-                recorder.capture(bmp)
+                val viaScreen = recorder.capture(bmp)
+                if (viaScreen) screenCopyUsed = true
+                if (frameCount % 6 == 0 && recorder.looksBlank(bmp)) blankFrames++
                 val pts = (SystemClock.elapsedRealtimeNanos() - startNs) / 1000
                 if (frames.trySend(RecordedFrame(bmp, pts, subtitle, step, totalSteps, presenterClip, presenterClipStartUs)).isSuccess) frameCount++ else bmp.recycle()
                 delay((interval - (SystemClock.elapsedRealtime() - t0)).coerceAtLeast(1))

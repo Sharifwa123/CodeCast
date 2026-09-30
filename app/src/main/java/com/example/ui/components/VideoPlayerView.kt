@@ -56,6 +56,7 @@ fun VideoPlayerAndEditorView(
     onRegenerateScene: (GeneratedSceneEntity) -> Unit,
     exportProgress: Float? = null,
     exportedVideoPath: String? = null,
+    exportedAspect: Float = 16f / 9f,
     onExportRequested: (format: String) -> Unit
 ) {
     val activeScene = scenes.getOrNull(currentSceneIndex) ?: scenes.firstOrNull()
@@ -67,6 +68,23 @@ fun VideoPlayerAndEditorView(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        exportedVideoPath?.let { path ->
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                androidx.compose.ui.viewinterop.AndroidView(
+                    factory = { ctx ->
+                        android.widget.VideoView(ctx).apply {
+                            setMediaController(android.widget.MediaController(ctx).also { it.setAnchorView(this) })
+                        }
+                    },
+                    update = { v -> if (v.tag != path) { v.tag = path; v.setVideoPath(path); v.seekTo(1) } },
+                    modifier = Modifier
+                        .fillMaxWidth(if (exportedAspect < 1f) 0.62f else 1f)
+                        .aspectRatio(exportedAspect)
+                        .testTag("exported_video_view")
+                )
+            }
+        }
+
         // VIDEO PLAYER VIEWPORT
         Card(
             shape = RoundedCornerShape(12.dp),
@@ -556,18 +574,6 @@ fun VideoPlayerAndEditorView(
                     }
                 }
             }
-        }
-
-        exportedVideoPath?.let { path ->
-            androidx.compose.ui.viewinterop.AndroidView(
-                factory = { ctx ->
-                    android.widget.VideoView(ctx).apply {
-                        setMediaController(android.widget.MediaController(ctx).also { it.setAnchorView(this) })
-                    }
-                },
-                update = { v -> if (v.tag != path) { v.tag = path; v.setVideoPath(path); v.seekTo(1) } },
-                modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).testTag("exported_video_view")
-            )
         }
 
         // EXPORT & SHARE BUTTONS

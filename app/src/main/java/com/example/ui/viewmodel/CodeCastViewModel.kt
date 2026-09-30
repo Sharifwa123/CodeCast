@@ -1175,8 +1175,11 @@ class CodeCastViewModel(
                 encodeAacPcm(pcm, rate)
             }
             setStage("Finishing video", 0.92f, done)
+            val sampled = (session.frameCount / 6).coerceAtLeast(1)
+            val blank = session.blankFrames
             val file = session.finish(aac)
             done.add("Recorded ${durations.size} of ${pairs.size} steps on $host (${profile.label})")
+            if (blank * 2 > sampled) issues.add(QualityCheckIssue(0, "Recording", "Page captured blank", "Most captured frames show only a plain background (${if (session.screenCopyUsed) "screen copy" else "view copy"} used). The site may block embedded browsers or render content this device cannot capture.", "Open the site in Chrome to check it loads, or choose code slides."))
             // scenes: drop the ones that could not be recorded, use the real durations
             var order = 0
             scenes.forEach { sc ->
