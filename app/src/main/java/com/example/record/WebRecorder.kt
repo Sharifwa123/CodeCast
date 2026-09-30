@@ -102,6 +102,29 @@ class WebRecorder(private val webView: WebView, private val profile: DeviceProfi
         suspendCancellableCoroutine<String> { cont -> webView.evaluateJavascript(js) { r -> if (cont.isActive) cont.resume(r ?: "null") } }
     }
 
+    /** Reads the visible fields and buttons of the page currently shown. Re-scans until the page stops changing. */
+    suspend fun scan(route: String, url: String): LiveScan {
+        var last: LiveScan? = null
+        repeat(4) { attempt ->
+            val raw = evalString("(window.__cc?window.__cc.scan():null)")
+            val json = try { (org.json.JSONTokener(raw).nextValue() as? String) } catch (_: Exception) { null }
+            if (json != null) {
+                val o = JSONObject(json)
+                val arr = o.getJSONArray("elements")
+                val els = (0 until arr.length()).map { i ->
+                    val e = arr.getJSONObject(i)
+                    LiveElement(e.getString("kind"), e.optString("tag"), e.optString("type"), e.optString("name"), e.optString("id"),
+                        e.optString("placeholder"), e.optString("label"), e.optString("text"), e.getInt("index"), e.optBoolean("inForm"), e.optBoolean("required"))
+                }
+                val scan = LiveScan(route, o.optString("url", url), o.optString("title"), els)
+                if (last != null && last!!.elements.size == els.size && els.isNotEmpty()) return scan
+                last = scan
+            }
+            delay(1200)
+        }
+        return last ?: LiveScan(route, url, "", emptyList(), "page scripts could not run")
+    }
+
     suspend fun probe(spec: ElementSpec): Boolean = withContext(Dispatchers.Main) {
         suspendCancellableCoroutine<Boolean> { cont ->
             webView.evaluateJavascript("(window.__cc?window.__cc.probe(${specJson(spec)}):false)") { r -> if (cont.isActive) cont.resume(r == "true") }
@@ -128,7 +151,7 @@ class WebRecorder(private val webView: WebView, private val profile: DeviceProfi
 
     fun specJson(s: ElementSpec): String = JSONObject()
         .put("kind", s.kind).put("name", s.name).put("id", s.id).put("placeholder", s.placeholder)
-        .put("type", s.type).put("label", s.label).put("text", s.text).put("submit", s.submit).toString()
+        .put("type", s.type).put("label", s.label).put("text", s.text).put("submit", s.submit).put("index", s.index).toString()
 
     /** Draws the current WebView contents (scaled) into [dst]. Must run on the main thread. */
     fun capture(dst: Bitmap) {

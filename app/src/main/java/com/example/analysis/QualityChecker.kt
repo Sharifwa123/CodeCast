@@ -31,6 +31,7 @@ object QualityChecker {
         val byPath = files.associateBy { it.path }
         var evidenceOk = true
         scenes.forEach { sc ->
+            if (active.firstOrNull { it.title == sc.title }?.evidenceSource == "Live page only") return@forEach
             val f = byPath[sc.codeFilePath]
             val first = sc.codeSnippet.lines().firstOrNull { it.isNotBlank() }?.trim()
             if (f == null || sc.codeSnippet.isBlank() || (first != null && !f.content.contains(first))) {

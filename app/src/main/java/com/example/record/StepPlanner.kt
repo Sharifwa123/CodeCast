@@ -11,7 +11,8 @@ data class ElementSpec(
     val type: String = "",
     val label: String = "",
     val text: String = "",
-    val submit: Boolean = false
+    val submit: Boolean = false,
+    val index: Int = -1          // position on the live page when known
 )
 
 sealed class PlannedAction {

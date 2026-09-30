@@ -155,6 +155,8 @@ fun CodeCastTopBar(
                                 )
                                 Text(
                                     text = "Code",
+                                    maxLines = 1,
+                                    softWrap = false,
                                     fontSize = 12.sp,
                                     color = Slate200,
                                     fontWeight = FontWeight.SemiBold

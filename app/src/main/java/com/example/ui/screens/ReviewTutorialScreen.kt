@@ -111,7 +111,7 @@ fun ReviewTutorialScreen(
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
-                                text = "Virtual Presenter Clone Active",
+                                text = "Presenter photo in the video",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Slate100
@@ -121,7 +121,7 @@ fun ReviewTutorialScreen(
                             }
                         }
                         Text(
-                            text = if (presenterFaceUri != null) "✓ Uploaded Face Likeness mapped" else "Default Presenter Likeness",
+                            text = if (presenterFaceUri != null) "✓ Your photo appears as a circle in the video" else "No photo added",
                             fontSize = 11.sp,
                             color = Slate300
                         )

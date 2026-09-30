@@ -195,8 +195,8 @@ object CodebaseAnalyzer {
                     Regex("""<\s*[A-Z]\w*(Input|Field|Select|Textarea)\b""").containsMatchIn(l) -> {
                     val type = attr(tag, "type") ?: if (l.contains("textarea", true)) "textarea" else "text"
                     if (type.lowercase() in setOf("hidden", "submit", "button")) continue
-                    val label = attr(tag, "placeholder") ?: attr(tag, "aria-label") ?: attr(tag, "label")
-                        ?: labelTextBefore(back) ?: attr(tag, "name")?.let { humanize(it) } ?: attr(tag, "id")?.let { humanize(it) } ?: typeLabel(type)
+                    val label = labelTextBefore(back) ?: attr(tag, "aria-label") ?: attr(tag, "label") ?: attr(tag, "placeholder")
+                        ?: attr(tag, "name")?.let { humanize(it) } ?: attr(tag, "id")?.let { humanize(it) } ?: typeLabel(type)
                     out.add(Element(f.path, i + 1, "input", humanize(label), type.lowercase()))
                 }
                 (ext == "dart" && Regex("""\bText(Form)?Field\(""").containsMatchIn(l)) -> {

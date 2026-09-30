@@ -27,9 +27,25 @@ object DirectorScript {
     else { var p = el.closest && el.closest('label'); if (p) t = p.textContent; }
     return norm(t);
   }
+  function candidates(kind){
+    var sel = kind === 'input' ? 'input,textarea,select' : 'button,a,[role=button],input[type=submit],input[type=button]';
+    return [].slice.call(document.querySelectorAll(sel)).filter(visible);
+  }
+  function labelRaw(el){
+    var t = '';
+    if (el.labels && el.labels.length) t = el.labels[0].textContent;
+    else { var p = el.closest && el.closest('label'); if (p) t = p.textContent; }
+    if (!t) t = el.getAttribute('aria-label') || '';
+    return (t || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  }
   function find(spec){
-    var sel = spec.kind === 'input' ? 'input,textarea,select' : 'button,a,[role=button],input[type=submit],input[type=button]';
-    var list = [].slice.call(document.querySelectorAll(sel)).filter(visible);
+    var list = candidates(spec.kind);
+    if (spec.index !== undefined && spec.index >= 0 && list[spec.index]) {
+      var c = list[spec.index];
+      var okName = !spec.name || c.getAttribute('name') === spec.name;
+      var okId = !spec.id || c.id === spec.id;
+      if (okName && okId) return c;
+    }
     var best = null, bs = 0;
     list.forEach(function(el){
       var sc = 0;
@@ -97,6 +113,21 @@ object DirectorScript {
   }
   window.__cc = {
     probe: function(spec){ return !!find(spec); },
+    scan: function(){
+      var out = [];
+      ['input', 'button'].forEach(function(kind){
+        candidates(kind).forEach(function(el, i){
+          var type = (el.getAttribute('type') || el.tagName).toLowerCase();
+          var text = (el.textContent || el.value || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+          var lab = kind === 'input' ? labelRaw(el) : (el.getAttribute('aria-label') || '');
+          if (kind === 'button' && !text && !lab && !el.id) return;
+          out.push({kind: kind, tag: el.tagName.toLowerCase(), type: type, name: el.getAttribute('name') || '', id: el.id || '',
+            placeholder: el.getAttribute('placeholder') || '', label: lab, text: kind === 'button' ? (text || lab) : '',
+            index: i, inForm: !!(el.closest && el.closest('form')), required: !!el.required});
+        });
+      });
+      return JSON.stringify({title: document.title, url: location.href, elements: out});
+    },
     run: async function(token, a){
       var res = {ok: false, found: false, clicked: false}, sent = false;
       function post(){ if (sent) return; sent = true; try { CCBridge.done(token, JSON.stringify(res)); } catch (e) {} }

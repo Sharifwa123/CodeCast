@@ -271,6 +271,40 @@ class CodeCastViewModel(
 
     private var webViewDeferred = CompletableDeferred<android.webkit.WebView>()
     private var lastLoc = LocalizationResult(true, true)
+    private var recorder: WebRecorder? = null
+    private var liveSpecs = HashMap<Int, ElementSpec>()
+    private var lastReport: ReconcileReport? = null
+
+    private suspend fun acquireRecorder(): WebRecorder {
+        recorder?.let { return it }
+        val profile = DeviceProfile.fromId(_uiState.value.deviceProfile)
+        webViewDeferred = CompletableDeferred()
+        _uiState.update { it.copy(recorderVisible = true) }
+        val webView = withTimeoutOrNull(10_000) { webViewDeferred.await() } ?: error("The recording view could not start")
+        return WebRecorder(webView, profile).also { it.configure(); recorder = it }
+    }
+
+    private fun releaseRecorder() {
+        recorder = null
+        _uiState.update { it.copy(recorderVisible = false) }
+    }
+
+    /** Opens every page the steps need in the real browser view and checks the steps against what is really there. */
+    private suspend fun verifyLive(steps: List<TutorialStepEntity>, rec: WebRecorder, done: MutableList<String>): ReconcileResult {
+        val base = _uiState.value.liveUrl.trim().removeSuffix("/")
+        val routes = LinkedHashMap<String, String>()
+        routes["/"] = base
+        steps.filter { it.isChecked && it.actionType == "Navigate" }.forEach { s ->
+            StepPlanner.routeOf(s)?.takeIf { !it.contains(":") }?.let { r -> routes[r] = base + (if (r == "/") "" else r) }
+        }
+        val scans = HashMap<String, LiveScan>()
+        routes.entries.forEachIndexed { i, (route, url) ->
+            setStage("Reading the live page $route", 0.03f + 0.15f * i / routes.size, done)
+            scans[route] = if (rec.load(url)) rec.scan(route, url) else LiveScan(route, url, "", emptyList(), rec.lastError ?: "could not open")
+        }
+        return Reconciler.reconcile(steps, scans)
+    }
+
 
     fun attachWebView(v: android.webkit.WebView) { if (!webViewDeferred.isCompleted) webViewDeferred.complete(v) }
 
@@ -849,9 +883,9 @@ class CodeCastViewModel(
             )
 
             val tutorialId = repository.saveTutorial(tutorialEntity).toInt()
-            val stepsWithTutId = s0.stepsList.map { it.copy(tutorialId = tutorialId) }
-            repository.saveSteps(stepsWithTutId)
+            var stepsWithTutId = s0.stepsList.map { it.copy(tutorialId = tutorialId) }
             val savedTutorial = repository.getTutorial(tutorialId) ?: return@launch
+            liveSpecs = HashMap(); lastReport = null
 
             _uiState.update {
                 it.copy(
@@ -863,6 +897,21 @@ class CodeCastViewModel(
             }
             val done = mutableListOf<String>()
             try {
+                // 0. Read the live site and check the code-derived steps against it
+                if (s0.recordMode == "SCREEN") {
+                    setStage("Checking your live site against your code", 0.03f, done)
+                    val rr = verifyLive(stepsWithTutId, acquireRecorder(), done)
+                    check(rr.steps.any { it.isChecked && it.actionType != "Navigate" }) {
+                        "Nothing in your code's workflow matches what the live page shows. " +
+                            rr.report.codeOnly.joinToString("; ") { "${it.first}: ${it.second}" } + rr.report.pageNotes.joinToString("; ", prefix = " ")
+                    }
+                    stepsWithTutId = rr.steps
+                    liveSpecs = HashMap(rr.specs); lastReport = rr.report
+                    _uiState.update { it.copy(stepsList = rr.steps) }
+                    done.add(rr.report.summary())
+                }
+                repository.saveSteps(stepsWithTutId.map { it.copy(id = 0) })
+
                 // 1. Plan + localize scenes
                 val terms = savedTutorial.customTerminology.split(",").map { it.trim() }.filter { it.isNotEmpty() }
                 val apiKey = s0.geminiApiKey.ifBlank { BuildConfig.GEMINI_API_KEY }
@@ -877,6 +926,7 @@ class CodeCastViewModel(
                 throw e
             } catch (e: Exception) {
                 repository.updateTutorial(savedTutorial.copy(status = "DRAFT"))
+                releaseRecorder()
                 _uiState.update {
                     it.copy(
                         recorderVisible = false,
@@ -904,7 +954,11 @@ class CodeCastViewModel(
         val file: File
         if (_uiState.value.recordMode == "SCREEN") {
             val r = recordScreens(tutorial, steps, finalScenes, audio, done)
-            file = r.file; extra = r.issues
+            file = r.file
+            extra = r.issues + (lastReport?.let { rep ->
+                rep.codeOnly.map { (t, why) -> QualityCheckIssue(0, t, "Code and live site differ", why, "Update the deployed site or the code so they match, or remove the step.") } +
+                    rep.pageNotes.map { QualityCheckIssue(0, "Live page", "Live page note", it, "Check the URL or sign-in requirements.") }
+            } ?: emptyList())
             finalScenes = repository.getScenesList(tutorial.id)
         } else {
             setStage("Rendering video", 0.50f, done)
@@ -950,13 +1004,16 @@ class CodeCastViewModel(
             pairs.add(active[idx] to sc); from = idx + 1
         }
         check(pairs.isNotEmpty()) { "No steps to record" }
-        val actions = pairs.map { (step, _) -> StepPlanner.plan(step, base, st.allowRealClicks) }
+        val actions = pairs.map { (step, _) ->
+            val live = liveSpecs[step.id]
+            when {
+                live != null && step.actionType == "Input" -> PlannedAction.Type(live, StepPlanner.sampleValue(live))
+                live != null && step.actionType == "Click" -> PlannedAction.Click(live, st.allowRealClicks)
+                else -> StepPlanner.plan(step, base, st.allowRealClicks)
+            }
+        }
 
-        webViewDeferred = CompletableDeferred()
-        _uiState.update { it.copy(recorderVisible = true) }
-        val webView = withTimeoutOrNull(10_000) { webViewDeferred.await() } ?: error("The recording view could not start")
-        val recorder = WebRecorder(webView, profile)
-        recorder.configure()
+        val recorder = acquireRecorder()
         val startUrl = (actions.first() as? PlannedAction.Navigate)?.url ?: base
         setStage("Opening $host", 0.52f, done)
         if (!recorder.load(startUrl)) error("Couldn't open $startUrl (${recorder.lastError ?: "unknown error"})")
@@ -1035,7 +1092,7 @@ class CodeCastViewModel(
             session.abort()
             throw t
         } finally {
-            _uiState.update { it.copy(recorderVisible = false) }
+            releaseRecorder()
         }
     }
 
