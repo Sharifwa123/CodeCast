@@ -21,7 +21,14 @@ object CodebaseAnalyzer {
     fun analyze(files: List<CodebaseFile>): ProjectAnalysis {
         val byPath = files.associateBy { it.path }
         val (framework, tech) = detectFramework(files)
-        val routes = files.flatMap { extractRoutes(it) }.distinctBy { Triple(it.path, it.kind, it.method) }
+        val fileRouter = framework.startsWith("Next") || framework == "Nuxt"
+        val compRoutes = if (fileRouter) emptyMap() else routerComponentRoutes(files)
+        // A page file gets the route its router declares for it; the filesystem guess is only right for file-based routers.
+        val allRoutes = files.flatMap { extractRoutes(it) }.map { r ->
+            val declared = if (!fileRouter && r.kind == "screen" && r.line == 1 && r.file.contains("pages/")) compRoutes[stemKey(r.file.substringAfterLast('/').substringBeforeLast('.'))] else null
+            if (declared != null) r.copy(path = declared) else r
+        }
+        val routes = allRoutes.distinctBy { Triple(it.path, it.kind, it.method) }
         val screenRoutes = routes.filter { it.kind == "screen" }
         val apiRoutes = routes.filter { it.kind == "api" }
 
@@ -29,12 +36,13 @@ object CodebaseAnalyzer {
         for (f in files) {
             if (!isUiFile(f)) continue
             val elems = extractElements(f)
-            val route = screenRoutes.firstOrNull { it.file == f.path }
-            if (elems.isEmpty() && route == null) continue
+            val route = allRoutes.firstOrNull { it.kind == "screen" && it.file == f.path }
+            // a file that only declares routes (router config) is not a screen; its routes are handled as orphans below
+            if (elems.isEmpty() && (route == null || route.line != 1)) continue
             screens.getOrPut(f.path) { Screen(f.path, route) }.elements.addAll(elems)
         }
         // Routes declared in a router file whose component lives elsewhere: no screen unless elements exist.
-        val orphanRoutes = screenRoutes.filter { r -> screens.values.none { it.route == r } && r.file !in screens }
+        val orphanRoutes = screenRoutes.filter { r -> screens.values.none { it.route?.path == r.path } && r.file !in screens }
 
         val grouped = LinkedHashMap<String, MutableList<Screen>>()
         for (s in screens.values) grouped.getOrPut(featureOf(s.route?.path, s.file)) { mutableListOf() }.add(s)
@@ -106,6 +114,22 @@ object CodebaseAnalyzer {
     }
 
     // ---------- routes ----------
+    private fun stemKey(name: String) = name.lowercase().replace(Regex("""[^a-z0-9]"""), "").removeSuffix("page").removeSuffix("screen").removeSuffix("view")
+
+    /** component name -> absolute path, read from <Route path=.. element={<X/>}> / { path, element|component } declarations. */
+    fun routerComponentRoutes(files: List<CodebaseFile>): Map<String, String> {
+        val out = LinkedHashMap<String, String>()
+        val patterns = listOf(
+            Regex("""<Route[^>]*\spath=["'](/[^"']*)["'][^>]*?(?:element|Component|component)=\{\s*<?\s*(\w+)"""),
+            Regex("""path:\s*["'](/[^"']*)["']\s*,\s*(?:element|component|Component):\s*<?\s*(\w+)"""),
+            Regex("""path:\s*["'](/[^"']*)["'][^}]*?import\(\s*["'][^"']*?/(\w+)(?:\.\w+)?["']\s*\)""")
+        )
+        files.filter { f -> f.path.substringAfterLast('.').lowercase() in setOf("tsx", "jsx", "ts", "js", "vue") }.forEach { f ->
+            patterns.forEach { re -> re.findAll(f.content).forEach { m -> out.putIfAbsent(stemKey(m.groupValues[2]), m.groupValues[1]) } }
+        }
+        return out
+    }
+
     private fun isSource(f: CodebaseFile) = f.path.substringAfterLast('.', "").lowercase() in
         setOf("ts", "tsx", "js", "jsx", "mjs", "vue", "svelte", "py", "php", "dart", "html", "rb", "go", "java", "kt")
 

@@ -92,4 +92,36 @@ export default function Register() {
         val wf = a.workflows.first { it.id.startsWith("signup:") }
         assertEquals(listOf("Open Register", "Enter business email", "Enter password", "Click Create account"), wf.defaultSteps.map { it.title })
     }
+
+    private val registerTsx = """
+export default function Register() {
+  return (
+    <form onSubmit={submit} className="auth-form">
+      <label><span className="field-label">Business email</span><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@company.com" required /></label>
+      <label><span className="field-label">Password</span><input type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="At least 8 characters" /></label>
+      <button disabled={isLoading} className="button-primary">{isLoading ? "Creating workspace..." : "Create workspace"}</button>
+    </form>
+  );
+}
+""".trimStart()
+
+    private fun spa(routePath: String) = CodebaseAnalyzer.analyze(Fixtures.read("",
+        "package.json" to """{"dependencies":{"react":"18","react-router-dom":"6"}}""",
+        "frontend/App.tsx" to ("import Register from './pages/register';\nexport default () => (<Routes>\n  <Route path=\"" + routePath + "\" element={<Register />} />\n  <Route path=\"/login\" element={<Login />} />\n</Routes>);\n"),
+        "frontend/pages/register.tsx" to registerTsx).files)
+
+    @Test fun pageFileGetsTheRouteItsRouterDeclares_notTheFilesystemGuess() {
+        val a = spa("/signup")
+        val wf = a.findWorkflow("signup:")!!
+        assertEquals("Go to /signup", wf.defaultSteps.first { it.actionType == "Navigate" }.defaultInstruction)
+        assertTrue(a.routes.none { it.path == "/register" })
+        assertEquals(listOf("Open Signup", "Enter business email", "Enter your password", "Click Create workspace"), wf.defaultSteps.map { it.title })
+    }
+
+    @Test fun routerAndFilenameAgreeingMustNotDropTheNavigateStep() {
+        // regression: the router's <Route path="/register"> used to win the de-duplication and leave the page without a route
+        val wf = spa("/register").findWorkflow("signup:")!!
+        assertEquals("Go to /register", wf.defaultSteps.first().defaultInstruction)
+        assertEquals("Navigate", wf.defaultSteps.first().actionType)
+    }
 }

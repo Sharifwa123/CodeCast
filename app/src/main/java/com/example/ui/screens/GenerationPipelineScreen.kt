@@ -14,7 +14,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -79,21 +78,11 @@ fun GenerationPipelineScreen(
 
                 if (showRecorder) {
                     Text("Recording the live app. Keep CodeCast open until it finishes.", fontSize = 12.sp, color = Cyan300)
-                    androidx.compose.foundation.layout.BoxWithConstraints(
-                        modifier = Modifier.fillMaxWidth().height(330.dp).clip(RoundedCornerShape(8.dp)).background(Color.White).testTag("recorder_host")
-                    ) {
-                        val fullW = maxWidth
-                        val fullH = maxWidth * recorderAspect
-                        val scale = minOf(1f, 330.dp.value / fullH.value)
-                        androidx.compose.ui.viewinterop.AndroidView(
-                            factory = { ctx -> android.webkit.WebView(ctx).also(onWebViewReady) },
-                            onRelease = { it.destroy() },
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .requiredSize(fullW, fullH)
-                                .graphicsLayer(scaleX = scale, scaleY = scale, transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f))
-                        )
-                    }
+                    androidx.compose.ui.viewinterop.AndroidView(
+                        factory = { ctx -> android.webkit.WebView(ctx).also(onWebViewReady) },
+                        onRelease = { it.destroy() },
+                        modifier = Modifier.fillMaxWidth().aspectRatio(1f / recorderAspect).testTag("recorder_host")
+                    )
                 }
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {

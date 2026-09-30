@@ -452,6 +452,7 @@ fun CodeCastApp(
                                     onRegenerateScene = { viewModel.regenerateSingleScene(it) },
                                     exportProgress = state.exportProgress,
                                     exportedVideoPath = state.exportedVideoPath,
+                                    exportedAspect = if (state.recordMode == "SCREEN") com.example.record.DeviceProfile.fromId(state.deviceProfile).let { it.outWidth.toFloat() / it.outHeight } else 16f / 9f,
                                     onExportRequested = { format ->
                                         when (format) {
                                             "MP4" -> viewModel.exportVideo()

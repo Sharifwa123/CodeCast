@@ -65,7 +65,7 @@ class WebRecordingInstrumentedTest {
 
                 // 1. the WebView can really be captured (not a blank surface)
                 val probe = Bitmap.createBitmap(profile.contentWidth, profile.contentHeight, Bitmap.Config.ARGB_8888)
-                InstrumentationRegistry.getInstrumentation().runOnMainSync { recorder.capture(probe) }
+                recorder.capture(probe)
                 assertTrue("captured page is not blank: ${distinctColors(probe)} colors", distinctColors(probe) > 4)
 
                 // 2. record while the director works
