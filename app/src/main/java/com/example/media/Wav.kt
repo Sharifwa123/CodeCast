@@ -38,7 +38,14 @@ class WavData(val sampleRate: Int, val channels: Int, val pcm: ShortArray) {
                 } else if (id == "data") {
                     if (bits != 16 || ch < 1 || rate <= 0) return null
                     // streaming writers may leave the size as 0 / 0xFFFFFFFF: use the rest of the file
-                    if (size <= 0 || body + size > bytes.size) size = bytes.size - body
+                    val rest = bytes.size - body
+                    if (size <= 0 || size > rest) size = rest
+                    else if (size < rest) {
+                        // Some engines write a header that only covers the first chunk. Trust the bytes present
+                        // unless a known trailing chunk follows.
+                        val next = if (body + size + 4 <= bytes.size) String(bytes, body + size, 4) else ""
+                        if (next != "LIST" && next != "id3 " && next != "ID3 " && next != "fact") size = rest
+                    }
                     val n = size / 2
                     val out = ShortArray(n) { i -> (le16(bytes, body + i * 2)).toShort() }
                     return WavData(rate, ch, out)

@@ -67,8 +67,8 @@ object QualityChecker {
         // 4. Timing: total inside requested range, each scene long enough to speak its narration
         val range = ScenePlanner.rangeFor(tutorial.duration)
         val sum = scenes.sumOf { it.durationSeconds }
-        var timingOk = scenes.isNotEmpty() && sum >= range.minSec && (range.maxSec == null || sum <= range.maxSec)
-        if (!timingOk) issues.add(QualityCheckIssue(0, "Tutorial", "Duration", "Total ${sum}s is outside ${tutorial.duration}.", "Add or remove steps, or pick another duration."))
+        var timingOk = scenes.isNotEmpty() && (range.maxSec == null || sum <= range.maxSec)
+        if (!timingOk) issues.add(QualityCheckIssue(0, "Tutorial", "Duration", "Total ${sum}s is longer than ${tutorial.duration}.", "Remove steps or pick a longer duration."))
         scenes.forEach { sc ->
             val need = ScenePlanner.spokenSeconds(sc.narrationScript, tutorial.speakingSpeed)
             if (sc.durationSeconds < need) {

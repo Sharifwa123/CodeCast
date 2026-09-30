@@ -34,11 +34,13 @@ class PlannerTest {
         assertEquals(st.size - 1, ScenePlanner.plan(1, st, tut()).size)
     }
 
-    @Test fun durationRespectsSelectionAndSpeech() {
+    @Test fun scenesAreNeverPaddedWithSilence() {
         val st = steps()
-        assertTrue(ScenePlanner.plan(1, st, tut("Quick — 30–60 seconds")).sumOf { it.durationSeconds } in 30..60)
-        assertTrue(ScenePlanner.plan(1, st, tut("Standard — 1–3 minutes")).sumOf { it.durationSeconds } >= 60)
-        // measured TTS length longer than estimate wins
+        val short = ScenePlanner.plan(1, st, tut("Detailed — 3–7 minutes"))
+        // 4 short steps must not be stretched to the 3-minute minimum
+        assertTrue("total=${short.sumOf { it.durationSeconds }}", short.sumOf { it.durationSeconds } < 60)
+        short.forEach { assertTrue(it.durationSeconds <= Math.ceil(ScenePlanner.spokenSeconds(it.narrationScript, 1f) + 1.0).toInt().coerceAtLeast(3)) }
+        // measured TTS length longer than the estimate wins
         val sc = ScenePlanner.plan(1, st, tut(), speechSeconds = { 20.0 })
         assertTrue(sc.all { it.durationSeconds >= 21 })
     }

@@ -77,7 +77,8 @@ class SceneFrameRenderer(private val o: RenderOptions) {
         val maxLines = ((b - t - 56f) / lineH).toInt().coerceAtLeast(1)
         text.textSize = 21f
         val gutter = 52f
-        lines.take(maxLines).forEachIndexed { i, line ->
+        val revealed = ((tIn * 14f).toInt() + 1)
+        lines.take(minOf(maxLines, revealed)).forEachIndexed { i, line ->
             val y = t + 46f + (i + 1) * lineH - 8f
             val isHl = (i + 1) in hl
             if (isHl) {
@@ -88,6 +89,31 @@ class SceneFrameRenderer(private val o: RenderOptions) {
             text.color = if (isHl) Color.parseColor("#38BDF8") else Color.parseColor("#475569")
             c.drawText("${i + 1}", l + 12f, y, text)
             drawHighlighted(c, ellipsize(line.replace("\t", "  "), text, r - l - gutter - 20f), l + gutter, y)
+        }
+        // Cursor glides to the highlighted line, then clicks (ripple)
+        val hlIdx = (hl.minOrNull() ?: 1) - 1
+        if (hlIdx in 0 until minOf(lines.size, maxLines)) {
+            val ty = t + 46f + (hlIdx + 1) * lineH - 18f
+            val lineText = lines[hlIdx].replace("\t", "  ").trim()
+            text.textSize = 21f
+            val tx = l + gutter + minOf(text.measureText(lineText), r - l - gutter - 60f) * 0.6f
+            val sx = r - 60f
+            val sy = b - 40f
+            val p = ((tIn - 0.8f) / 1.2f).coerceIn(0f, 1f)
+            val e = p * p * (3 - 2 * p)
+            val cx = sx + (tx - sx) * e
+            val cy = sy + (ty - sy) * e
+            if (tIn > 0.8f) {
+                if (p >= 1f) {
+                    val ph = ((tIn - 2.0f) % 1.3f) / 1.3f
+                    fill.style = Paint.Style.STROKE; fill.strokeWidth = 4f
+                    fill.color = Color.argb(((1f - ph) * 200).toInt().coerceIn(0, 255), 56, 189, 248)
+                    c.drawCircle(cx, cy, 8f + ph * 42f, fill); fill.style = Paint.Style.FILL
+                }
+                val arrow = Path().apply { moveTo(cx, cy); lineTo(cx + 22f, cy + 10f); lineTo(cx + 11f, cy + 13f); lineTo(cx + 6f, cy + 24f); close() }
+                fill.color = Color.WHITE; c.drawPath(arrow, fill)
+                fill.style = Paint.Style.STROKE; fill.strokeWidth = 2f; fill.color = Color.parseColor("#0F172A"); c.drawPath(arrow, fill); fill.style = Paint.Style.FILL
+            }
         }
     }
 

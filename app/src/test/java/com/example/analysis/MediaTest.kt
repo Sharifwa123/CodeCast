@@ -27,6 +27,13 @@ class MediaTest {
         assertTrue(stereo.toMono(8000).all { it.toInt() == 1000 })
     }
 
+    @Test fun wavWithHeaderCoveringOnlyFirstChunkStillReadsAllAudio() {
+        val full = wav(22050, 1, ShortArray(44100) { 500 }) // 2s
+        val b = ByteBuffer.wrap(full).order(ByteOrder.LITTLE_ENDIAN)
+        b.putInt(40, 2205 * 2) // header claims only 0.1s of data
+        assertEquals(2.0, WavData.parse(full)!!.seconds, 0.001)
+    }
+
     @Test fun wavRejectsGarbage() {
         assertNull(WavData.parse(ByteArray(10)))
         assertNull(WavData.parse(ByteArray(64)))
