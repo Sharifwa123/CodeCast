@@ -307,7 +307,7 @@ fun DurationPresentationScreen(
                                     text = if (presenterFaceUri != null)
                                         "Facial mesh & gaze calibrated for tutorial PiP presentation."
                                     else
-                                        "Select your selfie or photo to generate your talking head presenter clone.",
+                                        "Choose a photo to show as the presenter (a circle in the video).",
                                     fontSize = 11.sp,
                                     color = Slate400
                                 )
@@ -361,180 +361,6 @@ fun DurationPresentationScreen(
                         }
                     }
 
-                    // 2. EXACT VOICE CLONING (DEEPFAKE VOICE)
-                    HorizontalDivider(color = Slate700)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "2. EXACT VOICE CLONE — VIRTUAL ME",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Indigo300,
-                            letterSpacing = 0.5.sp
-                        )
-                        Surface(color = Indigo500.copy(alpha = 0.2f), shape = RoundedCornerShape(4.dp)) {
-                            Text(
-                                text = "VOCAL TIMBRE CLONE",
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Indigo300,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = Slate950,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, if (hasClonedVoice) Emerald400 else Slate700),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(CircleShape)
-                                        .background(if (hasClonedVoice) Emerald400.copy(alpha = 0.2f) else Indigo500.copy(alpha = 0.2f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = if (hasClonedVoice) Icons.Default.GraphicEq else Icons.Default.Mic,
-                                        contentDescription = null,
-                                        tint = if (hasClonedVoice) Emerald400 else Indigo400,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                                Column {
-                                    Text(
-                                        text = if (hasClonedVoice) "✓ Voice Clone Active ($clonedVoiceName)" else "Record or Upload Your Voice Sample",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (hasClonedVoice) Emerald400 else Slate100
-                                    )
-                                    Text(
-                                        text = if (hasClonedVoice)
-                                            "Neural voice synthesizer matches your exact timbre and inflection."
-                                        else
-                                            "Read a short 5-second sentence to capture your authentic voice profile.",
-                                        fontSize = 11.sp,
-                                        color = Slate400
-                                    )
-                                }
-                            }
-
-                            // Calibration Script Prompt
-                            Surface(color = Slate900, shape = RoundedCornerShape(6.dp), modifier = Modifier.fillMaxWidth()) {
-                                Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text(text = "CALIBRATION READING SENTENCE:", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Cyan400)
-                                    Text(
-                                        text = "\"Hi, welcome to this video tutorial! I'll guide you step by step through our app features today.\"",
-                                        fontSize = 11.sp,
-                                        color = Slate200,
-                                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                                    )
-                                }
-                            }
-
-                            // Recording Controls
-                            if (isRecordingVoice) {
-                                // Active Recording State
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(Rose500.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
-                                        .padding(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(12.dp)
-                                                .clip(CircleShape)
-                                                .background(Rose500)
-                                        )
-                                        Text(text = "RECORDING MIC: 00:0${recordingDurationSec}s", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Rose400)
-                                        Text(text = "|||||||||||", fontSize = 12.sp, color = Cyan400)
-                                    }
-
-                                    Button(
-                                        onClick = onStopRecordVoice,
-                                        colors = ButtonDefaults.buttonColors(containerColor = Rose600),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                        modifier = Modifier.defaultMinSize(minHeight = 32.dp)
-                                    ) {
-                                        Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Stop & Clone", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                            } else {
-                                // Standby Buttons
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Button(
-                                        onClick = onStartRecordVoice,
-                                        colors = ButtonDefaults.buttonColors(containerColor = Indigo600),
-                                        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 36.dp),
-                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
-                                    ) {
-                                        Icon(Icons.Default.Mic, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Record 5s Voice Sample", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                                    }
-
-                                    OutlinedButton(
-                                        onClick = onPickAudioFile,
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Slate200),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, Slate700),
-                                        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 36.dp),
-                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
-                                    ) {
-                                        Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Upload Audio (.mp3/.wav)", fontSize = 11.sp)
-                                    }
-                                }
-                            }
-
-                            // If voice is cloned, show test preview button and pitch slider
-                            if (hasClonedVoice) {
-                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(text = "Cloned Pitch Tuning: ${String.format("%.2f", clonedVoicePitch)}x", fontSize = 11.sp, color = Slate300)
-                                        OutlinedButton(
-                                            onClick = onTestVoicePreview,
-                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Cyan400),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, Cyan500.copy(alpha = 0.5f)),
-                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                            modifier = Modifier.defaultMinSize(minHeight = 28.dp)
-                                        ) {
-                                            Icon(Icons.Default.VolumeUp, contentDescription = null, modifier = Modifier.size(14.dp))
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(if (isTestingVoiceAudio) "Speaking..." else "Test Preview", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                        }
-                                    }
-                                    Slider(
-                                        value = clonedVoicePitch,
-                                        onValueChange = onTuneVoicePitch,
-                                        valueRange = 0.8f..1.2f,
-                                        colors = SliderDefaults.colors(thumbColor = Cyan400, activeTrackColor = Cyan400)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
                     // Likeness Consent
                     Surface(
                         color = Slate950,
@@ -552,7 +378,7 @@ fun DurationPresentationScreen(
                                 colors = CheckboxDefaults.colors(checkedColor = Indigo500)
                             )
                             Text(
-                                text = "I confirm ownership or proper consent for the uploaded face likeness and cloned voice profile for tutorial synthesis.",
+                                text = "I confirm I own, or have consent to use, the photo I add as presenter.",
                                 fontSize = 10.sp,
                                 color = Slate300
                             )

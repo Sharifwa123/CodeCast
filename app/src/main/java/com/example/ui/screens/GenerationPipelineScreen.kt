@@ -26,16 +26,6 @@ fun GenerationPipelineScreen(
     progressState: GenerationProgressState,
     onViewResultClick: () -> Unit
 ) {
-    val stages = listOf(
-        "Analyzing workflow and call trees",
-        "Preparing verified application screens",
-        "Generating neural voice narration",
-        "Synthesizing localized subtitles",
-        "Assembling camera pans & click ripples",
-        "Rendering high-definition video track",
-        "Executing automated quality check"
-    )
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -114,8 +104,9 @@ fun GenerationPipelineScreen(
                         .padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    stages.forEach { stage ->
-                        val isDone = progressState.completedStages.contains(stage) || progressState.isCompleted
+                    val running = if (!progressState.isCompleted && progressState.isRunning) listOf(progressState.phaseName) else emptyList()
+                    (progressState.completedStages + running).forEach { stage ->
+                        val isDone = stage in progressState.completedStages
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,

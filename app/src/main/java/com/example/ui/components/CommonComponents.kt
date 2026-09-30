@@ -130,12 +130,6 @@ fun CodeCastTopBar(
                                     color = Slate200,
                                     fontWeight = FontWeight.Medium
                                 )
-                                Icon(
-                                    imageVector = Icons.Default.NewReleases,
-                                    contentDescription = "New version update available",
-                                    tint = Amber500,
-                                    modifier = Modifier.size(14.dp)
-                                )
                             }
                         }
                     }
@@ -197,7 +191,7 @@ fun WorkflowStepperHeader(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "STEP ${currentStep.stepNumber} OF 12",
+                    text = "STEP ${currentStep.stepNumber.coerceAtMost(13)} OF 13",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     color = Cyan400,
@@ -214,7 +208,7 @@ fun WorkflowStepperHeader(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Step Progress Bar
-            val totalSteps = 12
+            val totalSteps = 13
             val currentIdx = currentStep.stepNumber.coerceIn(1, totalSteps)
             LinearProgressIndicator(
                 progress = { currentIdx / totalSteps.toFloat() },
@@ -244,9 +238,10 @@ fun WorkflowStepperHeader(
                     WizardStep.REVIEW_TUTORIAL
                 )
 
-                primarySteps.forEach { step ->
-                    val isPast = step.stepNumber < currentStep.stepNumber
-                    val isCurrent = step.stepNumber == currentStep.stepNumber
+                val currentPill = primarySteps.lastOrNull { it.stepNumber <= currentStep.stepNumber } ?: primarySteps.first()
+                primarySteps.forEachIndexed { pillIdx, step ->
+                    val isPast = step.stepNumber < currentPill.stepNumber
+                    val isCurrent = step == currentPill
                     val pillBg = when {
                         isCurrent -> Indigo500
                         isPast -> Slate800
@@ -268,7 +263,7 @@ fun WorkflowStepperHeader(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = if (isPast) "✓" else "${step.stepNumber}",
+                            text = if (isPast) "✓" else "${pillIdx + 1}",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = textColor

@@ -62,6 +62,7 @@ data class CodeCastUiState(
     val analysis: ProjectAnalysis = ProjectAnalysis.EMPTY,
     val isFetching: Boolean = false,
     val ingestError: String? = null,
+    val geminiApiKey: String = "",
     val exportProgress: Float? = null,
     val exportedVideoPath: String? = null,
     val isAnalyzing: Boolean = false,
@@ -158,8 +159,16 @@ class CodeCastViewModel(
     private var playbackJob: Job? = null
     private var generationJob: Job? = null
 
+    private val prefs = appContext.getSharedPreferences("codecast_prefs", Context.MODE_PRIVATE)
+
     init {
+        _uiState.update { it.copy(geminiApiKey = prefs.getString("gemini_key", "") ?: "") }
         loadInitialData()
+    }
+
+    fun setGeminiApiKey(key: String) {
+        prefs.edit().putString("gemini_key", key.trim()).apply()
+        _uiState.update { it.copy(geminiApiKey = key.trim()) }
     }
 
     private fun loadInitialData() {
@@ -808,7 +817,8 @@ class CodeCastViewModel(
             try {
                 // 1. Plan + localize scenes
                 val terms = savedTutorial.customTerminology.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                val translator = if (BuildConfig.GEMINI_API_KEY.isNotBlank()) GeminiTranslator(BuildConfig.GEMINI_API_KEY, terms) else null
+                val apiKey = s0.geminiApiKey.ifBlank { BuildConfig.GEMINI_API_KEY }
+                val translator = if (apiKey.isNotBlank()) GeminiTranslator(apiKey, terms) else null
                 setStage("Writing narration and subtitles", 0.10f, done)
                 val (planned, loc) = repository.generateScenes(tutorialId, stepsWithTutId, savedTutorial, translator)
                 done.add("Planned ${planned.size} scenes from verified code evidence")

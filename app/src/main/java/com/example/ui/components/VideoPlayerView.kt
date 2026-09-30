@@ -218,196 +218,18 @@ fun VideoPlayerAndEditorView(
                             }
                         }
                     }
+                }
 
-                    // Overlay Vignette
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(
-                                        Color.Black.copy(alpha = 0.35f),
-                                        Color.Transparent,
-                                        Color.Black.copy(alpha = 0.75f)
-                                    )
-                                )
-                            )
-                    )
-
-                    // PRESENTATION STYLE OVERLAYS:
-                    // 1. Watermark
-                    if (tutorial.watermarkOption != "None") {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(12.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(Color.Black.copy(alpha = 0.6f))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = "CodeCast",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White.copy(alpha = 0.7f)
-                            )
-                        }
-                    }
-
-                    // 3. Action Callout Banner
-                    if (activeScene?.calloutText?.isNotEmpty() == true) {
-                        Surface(
-                            color = Slate900.copy(alpha = 0.9f),
-                            shape = RoundedCornerShape(6.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Indigo500.copy(alpha = 0.6f)),
-                            modifier = Modifier
-                                .align(Alignment.TopStart)
-                                .padding(12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.TouchApp,
-                                    contentDescription = null,
-                                    tint = Indigo400,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = activeScene.calloutText,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Slate50
-                                )
-                            }
-                        }
-                    }
-
-                    // 4. Presenter Avatar PiP (For "Your Face + Voice")
-                    if (tutorial.presentationType == "FACE_AND_VOICE") {
-                        val avatarShape = if (presenterFraming == "window") RoundedCornerShape(8.dp) else CircleShape
-
-                        // Speaking wave animation when video is playing
-                        val infiniteTransition = rememberInfiniteTransition(label = "speech")
-                        val borderAlpha by infiniteTransition.animateFloat(
-                            initialValue = 0.5f,
-                            targetValue = 1.0f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(600, easing = LinearEasing),
-                                repeatMode = RepeatMode.Reverse
-                            ),
-                            label = "borderGlow"
+                if (tutorial.hasSubtitles && activeScene?.subtitleText?.isNotEmpty() == true) {
+                    Surface(color = Slate900, modifier = Modifier.fillMaxWidth().testTag("subtitle_row")) {
+                        Text(
+                            text = activeScene.subtitleText,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                         )
-
-                        Column(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(12.dp),
-                            horizontalAlignment = Alignment.End,
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Card(
-                                shape = avatarShape,
-                                border = androidx.compose.foundation.BorderStroke(
-                                    2.dp,
-                                    if (isPlaying) Cyan400.copy(alpha = borderAlpha) else Cyan400
-                                ),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                                modifier = Modifier.size(68.dp)
-                            ) {
-                                if (presenterFaceUri != null) {
-                                    AsyncImage(
-                                        model = presenterFaceUri,
-                                        contentDescription = "Virtual Me Avatar",
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                } else {
-                                    val presenterResId = remember {
-                                        val id = context.resources.getIdentifier("demo_presenter", "drawable", context.packageName)
-                                        if (id != 0) id else 0
-                                    }
-                                    if (presenterResId != 0) {
-                                        Image(
-                                            painter = painterResource(id = presenterResId),
-                                            contentDescription = "Presenter Likeness",
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                    } else {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .background(Indigo600),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Person,
-                                                contentDescription = null,
-                                                tint = Color.White
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Presenter Badge
-                            Surface(
-                                color = Slate950.copy(alpha = 0.85f),
-                                shape = RoundedCornerShape(4.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, if (hasClonedVoice) Emerald400 else Cyan500)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(if (isPlaying) Emerald400 else Slate400)
-                                    )
-                                    Text(
-                                        text = if (presenterFaceUri != null) "Virtual Me" else "AI Presenter",
-                                        fontSize = 8.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (hasClonedVoice) Emerald300 else Cyan300
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // 5. Subtitles Bar (Overlay)
-                    if (tutorial.hasSubtitles && activeScene?.subtitleText?.isNotEmpty() == true) {
-                        Surface(
-                            color = Color.Black.copy(alpha = 0.85f),
-                            shape = RoundedCornerShape(6.dp),
-                            modifier = Modifier
-                                .align(if (tutorial.subtitlePosition == "Top") Alignment.TopCenter else Alignment.BottomCenter)
-                                .padding(
-                                    bottom = if (tutorial.subtitlePosition == "Top") 0.dp else 12.dp,
-                                    top = if (tutorial.subtitlePosition == "Top") 12.dp else 0.dp,
-                                    start = 24.dp,
-                                    end = 24.dp
-                                )
-                        ) {
-                            Text(
-                                text = activeScene.subtitleText,
-                                fontSize = when (tutorial.subtitleStyle) {
-                                    "Large / accessible" -> 14.sp
-                                    "Social media style" -> 13.sp
-                                    else -> 12.sp
-                                },
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (tutorial.subtitleStyle == "Social media style") Amber500 else Color.White,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
-                            )
-                        }
                     }
                 }
 
@@ -749,15 +571,12 @@ fun VideoPlayerAndEditorView(
         }
 
         // EXPORT & SHARE BUTTONS
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(
                 onClick = { if (exportProgress == null) onExportRequested("MP4") },
                 colors = ButtonDefaults.buttonColors(containerColor = Indigo600),
                 modifier = Modifier
-                    .weight(1f)
+                    .fillMaxWidth()
                     .defaultMinSize(minHeight = 44.dp)
                     .testTag("export_mp4_btn")
             ) {
@@ -770,11 +589,13 @@ fun VideoPlayerAndEditorView(
                 Text(if (exportProgress != null) "Rendering ${(exportProgress * 100).toInt()}%" else "Export MP4 (720p)", fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
 
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             OutlinedButton(
                 onClick = { onExportRequested("SRT") },
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Slate200),
                 border = androidx.compose.foundation.BorderStroke(1.dp, Slate700),
                 modifier = Modifier
+                    .weight(1f)
                     .defaultMinSize(minHeight = 44.dp)
                     .testTag("export_srt_btn")
             ) {
@@ -792,6 +613,7 @@ fun VideoPlayerAndEditorView(
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Cyan400),
                 border = androidx.compose.foundation.BorderStroke(1.dp, Cyan500.copy(alpha = 0.5f)),
                 modifier = Modifier
+                    .weight(1f)
                     .defaultMinSize(minHeight = 44.dp)
                     .testTag("share_link_btn")
             ) {
@@ -802,6 +624,7 @@ fun VideoPlayerAndEditorView(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("Share", fontSize = 12.sp)
+            }
             }
         }
     }

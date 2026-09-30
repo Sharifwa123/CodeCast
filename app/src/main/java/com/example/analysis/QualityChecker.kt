@@ -56,11 +56,11 @@ object QualityChecker {
         }
         if (!localization.narrationTranslated) {
             textOk = false
-            issues.add(QualityCheckIssue(0, "Narration", "Not Translated", "Narration could not be translated to ${tutorial.narrationLang}; it is in English.", "Configure GEMINI_API_KEY or choose English."))
+            issues.add(QualityCheckIssue(0, "Narration", "Not Translated", "Narration could not be translated to ${tutorial.narrationLang}; it is in English.", "Add a Gemini API key on the Voice & Language step, or choose English."))
         }
         if (tutorial.hasSubtitles && !localization.subtitlesTranslated) {
             textOk = false
-            issues.add(QualityCheckIssue(0, "Subtitles", "Not Translated", "Subtitles could not be translated to ${tutorial.subtitleLang}; they use the narration language.", "Configure GEMINI_API_KEY or match the narration language."))
+            issues.add(QualityCheckIssue(0, "Subtitles", "Not Translated", "Subtitles could not be translated to ${tutorial.subtitleLang}; they use the narration language.", "Add a Gemini API key on the Voice & Language step, or match the narration language."))
         }
         check(textOk)
 

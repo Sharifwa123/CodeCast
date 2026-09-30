@@ -42,7 +42,9 @@ fun VoiceLanguageScreen(
     onSubtitleLangChange: (String) -> Unit,
     onCustomTermsChange: (String) -> Unit,
     onSubtitleConfigChange: (enabled: Boolean, style: String, position: String) -> Unit,
-    onContinueClick: () -> Unit
+    onContinueClick: () -> Unit,
+    geminiKey: String = "",
+    onGeminiKeyChange: (String) -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
 
@@ -405,6 +407,34 @@ fun VoiceLanguageScreen(
                     )
                     Text(
                         text = "Names and brand trademarks listed here will remain intact across all language translations.",
+                        fontSize = 10.sp,
+                        color = Slate400
+                    )
+                }
+
+                // Translation key: needed for any language other than English
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "Translation API key (Gemini)",
+                        fontSize = 12.sp,
+                        color = Slate300,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    OutlinedTextField(
+                        value = geminiKey,
+                        onValueChange = onGeminiKeyChange,
+                        placeholder = { Text("Paste a Google AI Studio key") },
+                        singleLine = true,
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth().testTag("gemini_key_input"),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Indigo500,
+                            unfocusedBorderColor = Slate700
+                        )
+                    )
+                    Text(
+                        text = if (narrationLang == "English" && subtitleLang == "English") "Only needed when narration or subtitles are not English. Stored on this device."
+                        else "Required: without it, ${if (subtitleLang != "English") subtitleLang else narrationLang} text stays in English. Stored on this device.",
                         fontSize = 10.sp,
                         color = Slate400
                     )

@@ -51,7 +51,7 @@ fun QualityCheckReportDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "Automated verification against AST routes, runtime DOM controls, subtitle synchronization, and zero-hallucination compliance.",
+                    text = "Checks that every scene points at real code in your project, that narration and subtitles exist and fit the timing, that protected terms are intact, and that audio was produced. The app itself is not executed.",
                     fontSize = 12.sp,
                     color = Slate300
                 )
@@ -85,7 +85,7 @@ fun QualityCheckReportDialog(
                         ) {
                             Column(modifier = Modifier.padding(8.dp)) {
                                 Text(
-                                    text = "Step ${issue.stepOrder}: ${issue.issueType}",
+                                    text = (if (issue.stepOrder > 0) "Step ${issue.stepOrder}: " else "") + issue.issueType,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Amber500
@@ -112,7 +112,7 @@ fun QualityCheckReportDialog(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "All screens, routes, and controls fully verified against codebase runtime. 0 hallucinated UI elements.",
+                            text = "Every scene is backed by code found in your project, and narration, timing and terms check out.",
                             fontSize = 11.sp,
                             color = Emerald400,
                             modifier = Modifier.padding(8.dp)
@@ -124,10 +124,10 @@ fun QualityCheckReportDialog(
         confirmButton = {
             if (report.issues.isNotEmpty()) {
                 Button(
-                    onClick = onFixAutomatically,
+                    onClick = onDismiss,
                     colors = ButtonDefaults.buttonColors(containerColor = Indigo600)
                 ) {
-                    Text("Fix Automatically")
+                    Text("Close")
                 }
             } else {
                 Button(
@@ -135,13 +135,6 @@ fun QualityCheckReportDialog(
                     colors = ButtonDefaults.buttonColors(containerColor = Indigo600)
                 ) {
                     Text("Looks Good")
-                }
-            }
-        },
-        dismissButton = {
-            if (report.issues.isNotEmpty()) {
-                TextButton(onClick = onContinueAnyway) {
-                    Text("Continue Anyway", color = Slate400)
                 }
             }
         },

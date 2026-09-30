@@ -133,7 +133,7 @@ fun CodeCastApp(
                         ) {
                             Icon(imageVector = Icons.Default.Hub, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Knowledge Hub", fontSize = 12.sp)
+                            Text("Knowledge", fontSize = 12.sp, maxLines = 1, softWrap = false)
                         }
 
                         TextButton(
@@ -146,9 +146,9 @@ fun CodeCastApp(
                             val report = state.generationProgress.qualityReport
                             Text(
                                 text = when {
-                                    report == null -> "Quality Check"
-                                    report.isClean -> "Quality Check (Passed)"
-                                    else -> "Quality Check (${report.issues.size} issue${if (report.issues.size == 1) "" else "s"})"
+                                    report == null -> "Quality"
+                                    report.isClean -> "Quality: passed"
+                                    else -> "Quality: ${report.issues.size} issue${if (report.issues.size == 1) "" else "s"}"
                                 },
                                 fontSize = 12.sp, fontWeight = FontWeight.Bold
                             )
@@ -162,7 +162,7 @@ fun CodeCastApp(
                         ) {
                             Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("New Tutorial", fontSize = 11.sp)
+                            Text("New", fontSize = 11.sp, maxLines = 1, softWrap = false)
                         }
                     }
                 }
@@ -325,7 +325,9 @@ fun CodeCastApp(
                             onSubtitleConfigChange = { en, sty, pos ->
                                 viewModel.setSubtitleConfig(en, sty, pos)
                             },
-                            onContinueClick = { viewModel.goToStep(WizardStep.CUSTOMIZE_APPEARANCE) }
+                            onContinueClick = { viewModel.goToStep(WizardStep.CUSTOMIZE_APPEARANCE) },
+                            geminiKey = state.geminiApiKey,
+                            onGeminiKeyChange = { viewModel.setGeminiApiKey(it) }
                         )
                     }
 

@@ -186,12 +186,17 @@ object CodebaseAnalyzer {
         for (i in lines.indices) {
             val l = lines[i]
             val win = lines.subList(i, minOf(i + 4, lines.size)).joinToString(" ")
-            val tag = win.substringBefore('>', win)
+            val back = lines.subList(maxOf(0, i - 2), i + 1).joinToString(" ")
+            val inputRe = Regex("""<\s*(?:input|textarea|select)\b|<\s*[A-Z]\w*(?:Input|Field|Select|Textarea)\b""", RegexOption.IGNORE_CASE)
+            val buttonRe = Regex("""<\s*(?:button|Button)\b""")
+            val tag = tagAt(win, (inputRe.find(win)?.takeIf { l.contains(it.value) }?.range?.first ?: buttonRe.find(win)?.range?.first ?: 0))
             when {
-                Regex("""<\s*(input|Input|textarea|Textarea|select|Select|TextField|TextInput)\b""").containsMatchIn(l) -> {
+                Regex("""<\s*(input|textarea|select)\b""", RegexOption.IGNORE_CASE).containsMatchIn(l) ||
+                    Regex("""<\s*[A-Z]\w*(Input|Field|Select|Textarea)\b""").containsMatchIn(l) -> {
                     val type = attr(tag, "type") ?: if (l.contains("textarea", true)) "textarea" else "text"
                     if (type.lowercase() in setOf("hidden", "submit", "button")) continue
-                    val label = attr(tag, "placeholder") ?: attr(tag, "aria-label") ?: attr(tag, "label") ?: attr(tag, "name") ?: attr(tag, "id") ?: type
+                    val label = attr(tag, "placeholder") ?: attr(tag, "aria-label") ?: attr(tag, "label")
+                        ?: labelTextBefore(back) ?: attr(tag, "name")?.let { humanize(it) } ?: attr(tag, "id")?.let { humanize(it) } ?: typeLabel(type)
                     out.add(Element(f.path, i + 1, "input", humanize(label), type.lowercase()))
                 }
                 (ext == "dart" && Regex("""\bText(Form)?Field\(""").containsMatchIn(l)) -> {
@@ -203,8 +208,7 @@ object CodebaseAnalyzer {
                     out.add(Element(f.path, i + 1, "input", label, "text"))
                 }
                 Regex("""<\s*(button|Button)\b""").containsMatchIn(l) -> {
-                    val inner = Regex("""<\s*(?:button|Button)\b[^>]*>\s*([^<{][^<]*)""").find(win)?.groupValues?.get(1)?.trim()
-                    val label = inner?.takeIf { it.isNotBlank() } ?: attr(tag, "aria-label") ?: attr(tag, "value") ?: attr(tag, "id") ?: "Button"
+                    val label = buttonText(win) ?: attr(tag, "aria-label") ?: attr(tag, "value") ?: attr(tag, "id")?.let { humanize(it) } ?: "Button"
                     out.add(Element(f.path, i + 1, "button", humanize(label), attr(tag, "type") ?: ""))
                 }
                 (ext == "dart" && Regex("""\b(Elevated|Text|Outlined|Filled)Button\(""").containsMatchIn(l)) -> {
@@ -215,6 +219,42 @@ object CodebaseAnalyzer {
             }
         }
         return out
+    }
+
+    /** The opening tag starting at [start], ending at the first '>' outside {...} (so `=>` in handlers is skipped). */
+    private fun tagAt(text: String, start: Int): String {
+        var depth = 0
+        var i = start
+        while (i < text.length) {
+            when (text[i]) {
+                '{' -> depth++
+                '}' -> if (depth > 0) depth--
+                '>' -> if (depth == 0) return text.substring(start, i)
+            }
+            i++
+        }
+        return text.substring(start)
+    }
+
+    /** Visible text of the <label> that wraps/precedes an input, e.g. <label><span>Business email</span><input/> */
+    private fun labelTextBefore(back: String): String? {
+        val m = Regex("""<label\b[^>]*>(.*?)<\s*(?:input|select|textarea|[A-Z]\w*(?:Input|Field|Select|Textarea))""", RegexOption.IGNORE_CASE)
+            .findAll(back).lastOrNull() ?: return null
+        val t = m.groupValues[1].replace(Regex("""<[^>]*>"""), " ").replace(Regex("""\{[^}]*\}"""), " ").replace(Regex("""\s+"""), " ").trim()
+        return t.takeIf { it.isNotBlank() }
+    }
+
+    /** Button caption: plain text, or the last string literal of a {cond ? "Loading" : "Create account"} expression. */
+    private fun buttonText(win: String): String? {
+        val inner = Regex("""<\s*(?:button|Button)\b[^>]*>\s*(.+?)\s*</""", RegexOption.IGNORE_CASE).find(win)?.groupValues?.get(1) ?: return null
+        val quoted = Regex("""["'`]([^"'`]{2,})["'`]""").findAll(inner).lastOrNull()?.groupValues?.get(1)
+        val text = quoted ?: inner.replace(Regex("""<[^>]*>"""), " ").replace(Regex("""\{[^}]*\}"""), " ").replace(Regex("""\s+"""), " ").trim()
+        return text.takeIf { it.isNotBlank() }
+    }
+
+    private fun typeLabel(type: String) = when (type.lowercase()) {
+        "email" -> "Email address"; "password" -> "Password"; "tel" -> "Phone number"; "checkbox" -> "Checkbox"
+        "number" -> "Number"; "textarea" -> "Message"; "search" -> "Search"; "date" -> "Date"; else -> "Text field"
     }
 
     private fun attr(tag: String, name: String): String? =
