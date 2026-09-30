@@ -36,7 +36,8 @@ fun ReviewTutorialScreen(
     hasClonedVoice: Boolean = false,
     clonedVoiceName: String = "",
     onGenerateClick: () -> Unit,
-    onBackToStepsClick: () -> Unit
+    onBackToStepsClick: () -> Unit,
+    extraContent: @Composable ColumnScope.() -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
     val activeSteps = steps.filter { it.isChecked }
@@ -234,6 +235,8 @@ fun ReviewTutorialScreen(
                 }
             }
         }
+
+        extraContent()
 
         // Actions
         Row(

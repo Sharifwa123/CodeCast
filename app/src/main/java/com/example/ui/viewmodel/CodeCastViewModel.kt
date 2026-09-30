@@ -11,10 +11,13 @@ import com.example.analysis.*
 import com.example.data.model.*
 import com.example.data.repository.CodeCastRepository
 import com.example.media.*
+import com.example.record.*
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -63,6 +66,14 @@ data class CodeCastUiState(
     val isFetching: Boolean = false,
     val ingestError: String? = null,
     val geminiApiKey: String = "",
+    val recordMode: String = "SCREEN", // "SCREEN" = record the live app, "SLIDES" = code slides only
+    val liveUrl: String = "",
+    val urlCandidates: List<UrlCandidate> = emptyList(),
+    val urlStatus: String? = null,
+    val urlChecking: Boolean = false,
+    val deviceProfile: String = "ANDROID_PHONE",
+    val allowRealClicks: Boolean = false,
+    val recorderVisible: Boolean = false,
     val exportProgress: Float? = null,
     val exportedVideoPath: String? = null,
     val isAnalyzing: Boolean = false,
@@ -225,10 +236,43 @@ class CodeCastViewModel(
                 projectNameInput = if (it.projectNameInput.isBlank()) cleanName else it.projectNameInput,
                 selectedWorkflow = null,
                 stepsList = emptyList(),
+                urlCandidates = LiveUrlFinder.fromSource(result.files, it.repoUrlInput),
+                liveUrl = if (it.liveUrl.isBlank()) LiveUrlFinder.fromSource(result.files, it.repoUrlInput).firstOrNull()?.url ?: "" else it.liveUrl,
                 notificationMessage = "Indexed ${result.files.size} source files (${analysis.framework})"
             )
         }
+        // A maintainer-set GitHub homepage is the best hint for where the app is deployed
+        val url = _uiState.value.repoUrlInput
+        if (url.isNotBlank()) viewModelScope.launch {
+            val hp = withContext(Dispatchers.IO) { RepoMeta.githubHomepage(url) }
+            LiveUrlFinder.normalize(hp)?.let { n ->
+                _uiState.update { st ->
+                    st.copy(urlCandidates = listOf(UrlCandidate(n, "GitHub repository homepage")) + st.urlCandidates.filter { c -> c.url != n },
+                        liveUrl = if (st.liveUrl.isBlank() || st.liveUrl == st.urlCandidates.firstOrNull()?.url) n else st.liveUrl)
+                }
+            }
+        }
     }
+
+    fun setRecordMode(mode: String) { _uiState.update { it.copy(recordMode = mode) } }
+    fun setLiveUrl(url: String) { _uiState.update { it.copy(liveUrl = url.trim(), urlStatus = null) } }
+    fun setDeviceProfile(id: String) { _uiState.update { it.copy(deviceProfile = id) } }
+    fun setAllowRealClicks(v: Boolean) { _uiState.update { it.copy(allowRealClicks = v) } }
+
+    fun checkLiveUrl() {
+        val u = _uiState.value.liveUrl
+        if (!LiveUrlFinder.isValid(u)) { _uiState.update { it.copy(urlStatus = "Enter a full URL such as https://yourapp.com") }; return }
+        viewModelScope.launch {
+            _uiState.update { it.copy(urlChecking = true, urlStatus = null) }
+            val err = withContext(Dispatchers.IO) { RepoMeta.reachable(u) }
+            _uiState.update { it.copy(urlChecking = false, urlStatus = err ?: "Reachable") }
+        }
+    }
+
+    private var webViewDeferred = CompletableDeferred<android.webkit.WebView>()
+    private var lastLoc = LocalizationResult(true, true)
+
+    fun attachWebView(v: android.webkit.WebView) { if (!webViewDeferred.isCompleted) webViewDeferred.complete(v) }
 
     fun openCodebaseExplorer(file: CodebaseFile? = null) {
         _uiState.update { it.copy(showCodebaseExplorer = true, selectedCodeFile = file ?: it.extractedCodeFiles.firstOrNull()) }
@@ -762,6 +806,10 @@ class CodeCastViewModel(
             return
         }
         val currentTitle = _uiState.value.selectedWorkflow?.name ?: "Application Tutorial"
+        if (_uiState.value.recordMode == "SCREEN" && !LiveUrlFinder.isValid(_uiState.value.liveUrl)) {
+            _uiState.update { it.copy(notificationMessage = "Enter your app's live URL to record the real screen, or switch to code slides.") }
+            return
+        }
 
         generationJob?.cancel()
         generationJob = viewModelScope.launch {
@@ -823,43 +871,15 @@ class CodeCastViewModel(
                 val (planned, loc) = repository.generateScenes(tutorialId, stepsWithTutId, savedTutorial, translator)
                 done.add("Planned ${planned.size} scenes from verified code evidence")
 
-                // 2. Narration audio
-                setStage("Synthesizing narration audio", 0.25f, done)
-                val (scenes, audio, audioOk) = narrate(planned, savedTutorial, onProgress = { p -> setStage("Synthesizing narration audio", 0.25f + 0.25f * p, done) })
-                done.add(if (audioOk) "Narration audio synthesized" else "No speech engine for ${savedTutorial.narrationLang} (video will be silent)")
-                val finalScenes = repository.getScenesList(tutorialId)
-
-                // 3. Render MP4
-                setStage("Rendering video", 0.50f, done)
-                val file = renderVideo(finalScenes, audio, tutorialId) { p -> setStage("Rendering video", 0.50f + 0.40f * p, done) }
-                done.add("Rendered ${file.name}")
-
-                // 4. Quality check
-                setStage("Running quality check", 0.95f, done)
-                val report = repository.runQualityCheck(stepsWithTutId, finalScenes, savedTutorial, _uiState.value.extractedCodeFiles, loc, audioOk)
-                done.add("Quality check: ${report.passedChecks}/${report.totalChecks} passed")
-                repository.updateTutorial(savedTutorial.copy(status = "COMPLETED"))
-
-                _uiState.update {
-                    it.copy(
-                        scenesList = finalScenes,
-                        selectedEditorScene = finalScenes.firstOrNull(),
-                        currentSceneIndex = 0,
-                        playbackSecond = 0f,
-                        exportedVideoPath = file.absolutePath,
-                        currentStep = WizardStep.VIDEO_PREVIEW_EDITOR,
-                        generationProgress = it.generationProgress.copy(
-                            isRunning = false, isCompleted = true, progressPercent = 1f,
-                            completedStages = done.toList(), qualityReport = report
-                        )
-                    )
-                }
+                lastLoc = loc
+                produce(savedTutorial, stepsWithTutId, planned, loc, done)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 repository.updateTutorial(savedTutorial.copy(status = "DRAFT"))
                 _uiState.update {
                     it.copy(
+                        recorderVisible = false,
                         generationProgress = it.generationProgress.copy(isRunning = false, phaseName = "Failed: ${e.message}"),
                         currentStep = WizardStep.REVIEW_TUTORIAL,
                         notificationMessage = "Video generation failed: ${e.message}"
@@ -869,8 +889,179 @@ class CodeCastViewModel(
         }
     }
 
+    private class ScreenResult(val file: File, val issues: List<QualityCheckIssue>)
+
+    /** Narration audio, then either a real screen recording of the live app or code slides, then the quality check. */
+    private suspend fun produce(
+        tutorial: TutorialPlanEntity, steps: List<TutorialStepEntity>, planned: List<GeneratedSceneEntity>,
+        loc: LocalizationResult, done: MutableList<String>
+    ) {
+        setStage("Synthesizing narration audio", 0.25f, done)
+        val (_, audio, audioOk) = narrate(planned, tutorial, onProgress = { p -> setStage("Synthesizing narration audio", 0.25f + 0.25f * p, done) })
+        done.add(if (audioOk) "Narration audio synthesized" else "No speech engine for ${tutorial.narrationLang} (video will be silent)")
+        var finalScenes = repository.getScenesList(tutorial.id)
+        var extra: List<QualityCheckIssue> = emptyList()
+        val file: File
+        if (_uiState.value.recordMode == "SCREEN") {
+            val r = recordScreens(tutorial, steps, finalScenes, audio, done)
+            file = r.file; extra = r.issues
+            finalScenes = repository.getScenesList(tutorial.id)
+        } else {
+            setStage("Rendering video", 0.50f, done)
+            file = renderVideo(finalScenes, audio, tutorial.id) { p -> setStage("Rendering video", 0.50f + 0.40f * p, done) }
+            done.add("Rendered ${file.name}")
+        }
+        setStage("Running quality check", 0.95f, done)
+        var report = repository.runQualityCheck(steps, finalScenes, tutorial, _uiState.value.extractedCodeFiles, loc, audioOk)
+        if (extra.isNotEmpty()) report = report.copy(isClean = false, totalChecks = report.totalChecks + 1, issues = report.issues + extra)
+        done.add("Quality check: ${report.passedChecks}/${report.totalChecks} passed")
+        repository.updateTutorial(tutorial.copy(status = "COMPLETED"))
+        _uiState.update {
+            it.copy(
+                scenesList = finalScenes,
+                selectedEditorScene = finalScenes.firstOrNull(),
+                currentSceneIndex = 0,
+                playbackSecond = 0f,
+                exportedVideoPath = file.absolutePath,
+                currentStep = WizardStep.VIDEO_PREVIEW_EDITOR,
+                recorderVisible = false,
+                generationProgress = it.generationProgress.copy(
+                    isRunning = false, isCompleted = true, progressPercent = 1f, completedStages = done.toList(), qualityReport = report
+                )
+            )
+        }
+    }
+
+    /** Records the live site while performing each step for real, narration aligned to the recorded timeline. */
+    private suspend fun recordScreens(
+        tutorial: TutorialPlanEntity, steps: List<TutorialStepEntity>, scenes: List<GeneratedSceneEntity>,
+        audio: Map<Int, WavData?>, done: MutableList<String>
+    ): ScreenResult {
+        val st = _uiState.value
+        val profile = DeviceProfile.fromId(st.deviceProfile)
+        val base = st.liveUrl.trim()
+        val host = try { java.net.URI(base).host ?: base } catch (_: Exception) { base }
+        // pair each scene with its step (scenes follow the checked steps in order)
+        val active = steps.filter { it.isChecked }
+        val pairs = ArrayList<Pair<TutorialStepEntity, GeneratedSceneEntity>>()
+        var from = 0
+        scenes.forEach { sc ->
+            val idx = (from until active.size).firstOrNull { active[it].title == sc.title } ?: return@forEach
+            pairs.add(active[idx] to sc); from = idx + 1
+        }
+        check(pairs.isNotEmpty()) { "No steps to record" }
+        val actions = pairs.map { (step, _) -> StepPlanner.plan(step, base, st.allowRealClicks) }
+
+        webViewDeferred = CompletableDeferred()
+        _uiState.update { it.copy(recorderVisible = true) }
+        val webView = withTimeoutOrNull(10_000) { webViewDeferred.await() } ?: error("The recording view could not start")
+        val recorder = WebRecorder(webView, profile)
+        recorder.configure()
+        val startUrl = (actions.first() as? PlannedAction.Navigate)?.url ?: base
+        setStage("Opening $host", 0.52f, done)
+        if (!recorder.load(startUrl)) error("Couldn't open $startUrl (${recorder.lastError ?: "unknown error"})")
+
+        val dir = appContext.getExternalFilesDir(android.os.Environment.DIRECTORY_MOVIES) ?: appContext.filesDir
+        val out = File(dir, "codecast_${tutorial.id}_${System.currentTimeMillis()}.mp4")
+        val watermark = if (st.watermarkOption == "None") null else "CodeCast" + (st.selectedProject?.name?.let { " · $it" } ?: "")
+        val presenter = renderOptions(st, null).presenter
+        val session = RecordingSession(recorder, profile, out, host, watermark, tutorial.hasSubtitles, presenter)
+        session.totalSteps = pairs.size
+        session.start(viewModelScope)
+
+        var currentUrl = startUrl
+        val placements = ArrayList<Pair<Double, WavData>>()
+        val durations = HashMap<Int, Int>()
+        val issues = ArrayList<QualityCheckIssue>()
+        val skippedIds = HashSet<Int>()
+        try {
+            pairs.forEachIndexed { i, (step, scene) ->
+                val action = actions[i]
+                setStage("Recording step ${i + 1} of ${pairs.size}: ${step.title}", 0.55f + 0.35f * i / pairs.size, done)
+                session.step = i; session.subtitle = scene.subtitleText
+                var reason: String? = when (action) {
+                    is PlannedAction.Skip -> action.reason
+                    is PlannedAction.Type -> if (recorder.probe(action.spec)) null else "Couldn't find the '${action.spec.label}' field on the live page"
+                    is PlannedAction.Click -> if (recorder.probe(action.spec)) null else "Couldn't find the '${action.spec.text}' button on the live page"
+                    else -> null
+                }
+                if (reason == null) {
+                    val wav = audio[scene.sceneOrder]
+                    val t0 = session.elapsedSec
+                    val speech = wav?.seconds ?: ScenePlanner.spokenSeconds(scene.narrationScript, tutorial.speakingSpeed)
+                    if (wav != null) placements.add(t0 to wav)
+                    when (action) {
+                        is PlannedAction.Navigate -> if (action.url != currentUrl) {
+                            if (recorder.load(action.url)) currentUrl = action.url
+                            else { reason = "Couldn't open ${action.url} (${recorder.lastError ?: "error"})"; if (wav != null) placements.removeAt(placements.size - 1) }
+                        }
+                        else -> recorder.run(action)
+                    }
+                    if (reason == null) {
+                        val remaining = t0 + speech + 0.7 - session.elapsedSec
+                        if (remaining > 0) delay((remaining * 1000).toLong())
+                        durations[scene.sceneOrder] = Math.ceil(session.elapsedSec - t0).toInt().coerceAtLeast(2)
+                    }
+                }
+                if (reason != null) {
+                    skippedIds.add(scene.id)
+                    issues.add(QualityCheckIssue(i + 1, step.title, "Not Recorded", reason, "Check the live URL, or pick a step whose page has no id in its route."))
+                }
+            }
+            check(durations.isNotEmpty()) { "None of the steps could be recorded on the live site. " + issues.joinToString("; ") { it.description } }
+            delay(900)
+            val total = Math.ceil(session.elapsedSec).toInt() + 1
+            val rate = placements.firstOrNull()?.second?.sampleRate ?: 22050
+            val aac = if (placements.isEmpty()) null else withContext(Dispatchers.Default) {
+                val pcm = ShortArray(total * rate)
+                placements.forEach { (t, w) ->
+                    val m = w.toMono(rate); val off = (t * rate).toInt()
+                    val n = minOf(m.size, pcm.size - off)
+                    if (n > 0) System.arraycopy(m, 0, pcm, off, n)
+                }
+                encodeAacPcm(pcm, rate)
+            }
+            setStage("Finishing video", 0.92f, done)
+            val file = session.finish(aac)
+            done.add("Recorded ${durations.size} of ${pairs.size} steps on $host (${profile.label})")
+            // scenes: drop the ones that could not be recorded, use the real durations
+            var order = 0
+            scenes.forEach { sc ->
+                if (sc.id in skippedIds) repository.deleteScene(sc.id)
+                else if (sc.sceneOrder in durations) repository.updateScene(sc.copy(sceneOrder = ++order, durationSeconds = durations.getValue(sc.sceneOrder)))
+            }
+            return ScreenResult(file, issues)
+        } catch (t: Throwable) {
+            session.abort()
+            throw t
+        } finally {
+            _uiState.update { it.copy(recorderVisible = false) }
+        }
+    }
+
+    /** Re-records the live site using the current (possibly edited) scene text. */
+    private fun reRecord() {
+        val st = _uiState.value
+        val tutorial = st.activeTutorial ?: return
+        if (!LiveUrlFinder.isValid(st.liveUrl)) { _uiState.update { it.copy(notificationMessage = "Enter the live URL first.") }; return }
+        val steps = st.stepsList.map { it.copy(tutorialId = tutorial.id) }
+        generationJob?.cancel()
+        generationJob = viewModelScope.launch {
+            _uiState.update { it.copy(currentStep = WizardStep.GENERATE_VIDEO, generationProgress = GenerationProgressState(isRunning = true, phaseName = "Preparing to re-record", progressPercent = 0.05f)) }
+            try {
+                produce(tutorial, steps, _uiState.value.scenesList, lastLoc, mutableListOf())
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(recorderVisible = false, currentStep = WizardStep.VIDEO_PREVIEW_EDITOR,
+                    generationProgress = it.generationProgress.copy(isRunning = false), notificationMessage = "Recording failed: ${e.message}") }
+            }
+        }
+    }
+
     /** Re-renders the MP4 from the current (possibly edited) scenes. */
     fun exportVideo() {
+        if (_uiState.value.recordMode == "SCREEN") { reRecord(); return }
         val tutorial = _uiState.value.activeTutorial ?: return
         if (_uiState.value.exportProgress != null) return
         viewModelScope.launch {

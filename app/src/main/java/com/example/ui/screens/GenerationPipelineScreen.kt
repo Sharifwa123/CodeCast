@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -13,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -24,11 +26,15 @@ import com.example.ui.viewmodel.GenerationProgressState
 @Composable
 fun GenerationPipelineScreen(
     progressState: GenerationProgressState,
-    onViewResultClick: () -> Unit
+    onViewResultClick: () -> Unit,
+    showRecorder: Boolean = false,
+    recorderAspect: Float = 0.5f,
+    onWebViewReady: (android.webkit.WebView) -> Unit = {}
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(androidx.compose.foundation.rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -67,6 +73,25 @@ fun GenerationPipelineScreen(
                             trackColor = Slate800,
                             strokeWidth = 4.dp,
                             modifier = Modifier.size(44.dp)
+                        )
+                    }
+                }
+
+                if (showRecorder) {
+                    Text("Recording the live app. Keep CodeCast open until it finishes.", fontSize = 11.sp, color = Cyan300)
+                    androidx.compose.foundation.layout.BoxWithConstraints(
+                        modifier = Modifier.fillMaxWidth().height(330.dp).clip(RoundedCornerShape(8.dp)).background(Color.White).testTag("recorder_host")
+                    ) {
+                        val fullW = maxWidth
+                        val fullH = maxWidth * recorderAspect
+                        val scale = minOf(1f, 330.dp.value / fullH.value)
+                        androidx.compose.ui.viewinterop.AndroidView(
+                            factory = { ctx -> android.webkit.WebView(ctx).also(onWebViewReady) },
+                            onRelease = { it.destroy() },
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .requiredSize(fullW, fullH)
+                                .graphicsLayer(scaleX = scale, scaleY = scale, transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f))
                         )
                     }
                 }

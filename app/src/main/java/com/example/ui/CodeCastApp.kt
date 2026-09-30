@@ -375,14 +375,33 @@ fun CodeCastApp(
                             hasClonedVoice = state.hasClonedVoice,
                             clonedVoiceName = state.clonedVoiceName,
                             onGenerateClick = { viewModel.startVideoGeneration() },
-                            onBackToStepsClick = { viewModel.goToStep(WizardStep.SELECT_STEPS) }
+                            onBackToStepsClick = { viewModel.goToStep(WizardStep.SELECT_STEPS) },
+                            extraContent = {
+                                RecordingTargetCard(
+                                    recordMode = state.recordMode,
+                                    liveUrl = state.liveUrl,
+                                    candidates = state.urlCandidates,
+                                    urlStatus = state.urlStatus,
+                                    urlChecking = state.urlChecking,
+                                    deviceProfile = state.deviceProfile,
+                                    allowRealClicks = state.allowRealClicks,
+                                    onModeChange = { viewModel.setRecordMode(it) },
+                                    onUrlChange = { viewModel.setLiveUrl(it) },
+                                    onCheckUrl = { viewModel.checkLiveUrl() },
+                                    onDeviceChange = { viewModel.setDeviceProfile(it) },
+                                    onRealClicksChange = { viewModel.setAllowRealClicks(it) }
+                                )
+                            }
                         )
                     }
 
                     WizardStep.GENERATE_VIDEO -> {
                         GenerationPipelineScreen(
                             progressState = state.generationProgress,
-                            onViewResultClick = { viewModel.goToStep(WizardStep.VIDEO_PREVIEW_EDITOR) }
+                            onViewResultClick = { viewModel.goToStep(WizardStep.VIDEO_PREVIEW_EDITOR) },
+                            showRecorder = state.recorderVisible,
+                            recorderAspect = com.example.record.DeviceProfile.fromId(state.deviceProfile).contentAspect,
+                            onWebViewReady = { viewModel.attachWebView(it) }
                         )
                     }
 
