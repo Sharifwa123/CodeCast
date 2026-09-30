@@ -44,58 +44,58 @@ fun CloneSetupCard(
         modifier = Modifier.fillMaxWidth().testTag("clone_setup_card")
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("CLONE YOUR VOICE AND PRESENTER (FREE, YOUR OWN SERVER)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Slate400, letterSpacing = 0.6.sp)
+            Text("Clone your voice and presenter (free, your own server)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Slate400)
             Text(
                 "A phone can't run these models. Run the free server in tools/clone-server (Google Colab or a Hugging Face Space), paste its URL here, and CodeCast will narrate in your voice and, with a photo, animate your presenter. Without it, the phone's own voice and a still photo are used.",
-                fontSize = 11.sp, color = Slate300
+                fontSize = 12.sp, color = Slate300
             )
             OutlinedTextField(
                 value = endpoint, onValueChange = onEndpointChange, singleLine = true,
-                label = { Text("Clone server URL", fontSize = 12.sp) }, placeholder = { Text("https://xxxx.ngrok-free.app") },
+                label = { Text("Clone server URL", fontSize = 13.sp) }, placeholder = { Text("https://xxxx.ngrok-free.app") },
                 modifier = Modifier.fillMaxWidth().testTag("clone_endpoint"),
                 colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Indigo500, unfocusedBorderColor = Slate700)
             )
             OutlinedTextField(
                 value = token, onValueChange = onTokenChange, singleLine = true, visualTransformation = PasswordVisualTransformation(),
-                label = { Text("Server token (optional)", fontSize = 12.sp) },
+                label = { Text("Server token (optional)", fontSize = 13.sp) },
                 modifier = Modifier.fillMaxWidth().testTag("clone_token"),
                 colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Indigo500, unfocusedBorderColor = Slate700)
             )
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedButton(onClick = onTest, enabled = !checking, modifier = Modifier.testTag("clone_test_btn")) {
-                    if (checking) CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp) else Text("Test connection", fontSize = 12.sp)
+                    if (checking) CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp) else Text("Test connection", fontSize = 13.sp)
                 }
-                status?.let { Text(it, fontSize = 11.sp, color = if (it == "Connected") Emerald400 else Color(0xFFF87171)) }
+                status?.let { Text(it, fontSize = 12.sp, color = if (it == "Connected") Emerald400 else Color(0xFFF87171)) }
             }
-            Text("Voice sample (10 to 15 seconds of clear speech)", fontSize = 11.sp, color = Slate400, fontWeight = FontWeight.SemiBold)
+            Text("Voice sample (10 to 15 seconds of clear speech)", fontSize = 12.sp, color = Slate400, fontWeight = FontWeight.SemiBold)
             Text(
                 text = sampleInfo?.let { "✓ Saved: $it" } ?: "No sample yet",
-                fontSize = 11.sp, color = if (sampleInfo != null) Emerald400 else Slate400
+                fontSize = 12.sp, color = if (sampleInfo != null) Emerald400 else Slate400
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (isRecording) {
                     Button(onClick = onStop, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)), modifier = Modifier.testTag("clone_stop_btn")) {
                         Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(6.dp)); Text("Stop (${recordingSec}s)", fontSize = 12.sp)
+                        Spacer(Modifier.width(6.dp)); Text("Stop (${recordingSec}s)", fontSize = 13.sp)
                     }
                 } else {
                     Button(onClick = onRecord, colors = ButtonDefaults.buttonColors(containerColor = Indigo600), modifier = Modifier.testTag("clone_record_btn")) {
                         Icon(Icons.Default.Mic, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(6.dp)); Text("Record", fontSize = 12.sp)
+                        Spacer(Modifier.width(6.dp)); Text("Record", fontSize = 13.sp)
                     }
                 }
                 OutlinedButton(onClick = onPickAudio, modifier = Modifier.testTag("clone_pick_audio_btn")) {
                     Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp)); Text("Choose audio file", fontSize = 12.sp)
+                    Spacer(Modifier.width(6.dp)); Text("Choose audio file", fontSize = 13.sp)
                 }
             }
-            if (isRecording) Text("Read something aloud, naturally. It stops at 15 seconds.", fontSize = 10.sp, color = Slate400)
+            if (isRecording) Text("Read something aloud, naturally. It stops at 15 seconds.", fontSize = 11.sp, color = Slate400)
             Text(
                 if (hasPhoto) "Presenter photo added: it will be animated when the server supports /talking-head."
                 else "Add a presenter photo above to animate it as a talking presenter.",
-                fontSize = 10.sp, color = Slate400
+                fontSize = 11.sp, color = Slate400
             )
-            Text("Only clone a voice or face you own or have permission to use.", fontSize = 10.sp, color = Slate500)
+            Text("Only clone a voice or face you own or have permission to use.", fontSize = 11.sp, color = Slate500)
         }
     }
 }

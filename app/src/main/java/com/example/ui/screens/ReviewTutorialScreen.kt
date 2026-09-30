@@ -61,15 +61,14 @@ fun ReviewTutorialScreen(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = "TUTORIAL PRODUCTION SPECIFICATION",
-                    fontSize = 11.sp,
+                    text = "Tutorial production specification",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Cyan400,
-                    letterSpacing = 0.8.sp
                 )
                 Text(
                     text = "Review your structured tutorial plan. All video scenes, narration synthesizers, and subtitle alignments are generated automatically behind the scenes.",
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     color = Slate300
                 )
             }
@@ -112,22 +111,22 @@ fun ReviewTutorialScreen(
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
                                 text = "Presenter photo in the video",
-                                fontSize = 13.sp,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Slate100
                             )
                             Surface(color = Cyan500.copy(alpha = 0.2f), shape = RoundedCornerShape(3.dp)) {
-                                Text("DEEPFAKE", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Cyan400, modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp))
+                                Text("Deepfake", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Cyan400, modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp))
                             }
                         }
                         Text(
                             text = if (presenterFaceUri != null) "✓ Your photo appears as a circle in the video" else "No photo added",
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             color = Slate300
                         )
                         Text(
                             text = if (hasClonedVoice) "✓ Cloned Voice: $clonedVoiceName" else "Voice: $voiceName",
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             color = if (hasClonedVoice) Emerald400 else Slate400
                         )
                     }
@@ -148,7 +147,7 @@ fun ReviewTutorialScreen(
             ) {
                 Text(
                     text = workflowTitle.uppercase(),
-                    fontSize = 15.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate50
                 )
@@ -169,11 +168,10 @@ fun ReviewTutorialScreen(
 
         // Steps Breakdown List
         Text(
-            text = "STEP-BY-STEP SCENE BREAKDOWN",
-            fontSize = 11.sp,
+            text = "Step-by-step scene breakdown",
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             color = Slate400,
-            letterSpacing = 0.6.sp
         )
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -195,7 +193,7 @@ fun ReviewTutorialScreen(
                         ) {
                             Text(
                                 text = "STEP ${index + 1}: ${step.title.uppercase()}",
-                                fontSize = 12.sp,
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Slate100
                             )
@@ -208,12 +206,12 @@ fun ReviewTutorialScreen(
                         ) {
                             Text(
                                 text = "Visual: ${step.screenName}",
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 color = Cyan400
                             )
                             Text(
                                 text = "Action: ${step.actionType}",
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 color = Slate400
                             )
                         }
@@ -225,7 +223,7 @@ fun ReviewTutorialScreen(
                         ) {
                             Text(
                                 text = "\"${if (step.instruction.isNotEmpty()) step.instruction else "Start by inspecting verified screen controls for ${step.title}."}\"",
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 color = Slate300,
                                 modifier = Modifier.padding(8.dp),
                                 fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
@@ -264,7 +262,7 @@ fun ReviewTutorialScreen(
             ) {
                 Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null)
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Generate Video", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("Generate Video", fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
         }
     }
@@ -276,7 +274,7 @@ private fun SpecRow(label: String, value: String) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = label, fontSize = 12.sp, color = Slate400)
-        Text(text = value, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Slate100)
+        Text(text = label, fontSize = 13.sp, color = Slate400)
+        Text(text = value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Slate100)
     }
 }

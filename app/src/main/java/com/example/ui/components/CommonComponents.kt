@@ -35,134 +35,40 @@ fun CodeCastTopBar(
     onVersionClick: () -> Unit,
     onExploreCodeClick: (() -> Unit)? = null
 ) {
-    Surface(
-        color = Slate900,
-        tonalElevation = 4.dp,
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(width = 1.dp, color = Slate800)
-    ) {
-        Column(
+    Surface(color = Slate950, modifier = Modifier.fillMaxWidth()) {
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Indigo600),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MovieFilter,
-                            contentDescription = "CodeCast Logo",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(
-                                text = "CodeCast",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 17.sp,
-                                color = Slate50
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(Slate800)
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "SAAS STUDIO",
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Cyan400
-                                )
-                            }
-                        }
-                        Text(
-                            text = projectName ?: "Codebase to Tutorial Video",
-                            fontSize = 11.sp,
-                            color = Slate400,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "CodeCast",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 18.sp,
+                    color = Slate50
+                )
+                Text(
+                    text = projectName ?: "New tutorial",
+                    fontSize = 13.sp,
+                    color = Slate400,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (activeVersion != null) {
+                    TextButton(
+                        onClick = onVersionClick,
+                        modifier = Modifier.testTag("version_badge"),
+                        colors = ButtonDefaults.textButtonColors(contentColor = Slate300)
+                    ) { Text(activeVersion, fontSize = 13.sp, maxLines = 1, softWrap = false) }
                 }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (activeVersion != null) {
-                        Surface(
-                            onClick = onVersionClick,
-                            shape = RoundedCornerShape(6.dp),
-                            color = Slate800,
-                            modifier = Modifier.testTag("version_badge")
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(Emerald400)
-                                )
-                                Text(
-                                    text = activeVersion,
-                                    fontSize = 11.sp,
-                                    color = Slate200,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
-
-                    if (onExploreCodeClick != null) {
-                        Surface(
-                            onClick = onExploreCodeClick,
-                            shape = RoundedCornerShape(6.dp),
-                            color = Slate800,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Slate700),
-                            modifier = Modifier.testTag("topbar_codebase_btn")
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Code,
-                                    contentDescription = "Codebase Explorer",
-                                    tint = Cyan400,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Text(
-                                    text = "Code",
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    fontSize = 12.sp,
-                                    color = Slate200,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
+                if (onExploreCodeClick != null) {
+                    IconButton(onClick = onExploreCodeClick, modifier = Modifier.testTag("topbar_codebase_btn")) {
+                        Icon(imageVector = Icons.Default.Code, contentDescription = "Browse code", tint = Slate300)
                     }
                 }
             }
@@ -176,113 +82,41 @@ fun WorkflowStepperHeader(
     onStepClick: (WizardStep) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        color = Slate950,
+    val total = 13
+    val n = currentStep.stepNumber.coerceIn(1, total)
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .border(width = 1.dp, color = Slate850)
+            .background(Slate950)
+            .padding(horizontal = 20.dp)
+            .padding(top = 8.dp, bottom = 14.dp)
     ) {
-        Column(
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = currentStep.title,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Slate50,
+                modifier = Modifier.weight(1f)
+            )
+            Text(text = "$n of $total", fontSize = 13.sp, color = Slate400, modifier = Modifier.padding(start = 12.dp, bottom = 3.dp))
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        LinearProgressIndicator(
+            progress = { n / total.toFloat() },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "STEP ${currentStep.stepNumber.coerceAtMost(13)} OF 13",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Cyan400,
-                    letterSpacing = 1.sp
-                )
-                Text(
-                    text = currentStep.title,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Slate100
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Step Progress Bar
-            val totalSteps = 13
-            val currentIdx = currentStep.stepNumber.coerceIn(1, totalSteps)
-            LinearProgressIndicator(
-                progress = { currentIdx / totalSteps.toFloat() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp)),
-                color = Indigo500,
-                trackColor = Slate800,
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Breadcrumb pills row (scrollable or wrap)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                val primarySteps = listOf(
-                    WizardStep.CREATE_PROJECT,
-                    WizardStep.ANALYZE_APP,
-                    WizardStep.CHOOSE_TUTORIAL,
-                    WizardStep.CHOOSE_AUDIENCE,
-                    WizardStep.CHOOSE_DURATION_PRESENTATION,
-                    WizardStep.CHOOSE_VOICE,
-                    WizardStep.CHOOSE_LANGUAGE_SUBTITLES,
-                    WizardStep.REVIEW_TUTORIAL
-                )
-
-                val currentPill = primarySteps.lastOrNull { it.stepNumber <= currentStep.stepNumber } ?: primarySteps.first()
-                primarySteps.forEachIndexed { pillIdx, step ->
-                    val isPast = step.stepNumber < currentPill.stepNumber
-                    val isCurrent = step == currentPill
-                    val pillBg = when {
-                        isCurrent -> Indigo500
-                        isPast -> Slate800
-                        else -> Slate900
-                    }
-                    val textColor = when {
-                        isCurrent -> Slate50
-                        isPast -> Emerald400
-                        else -> Slate500
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(pillBg)
-                            .clickable { onStepClick(step) }
-                            .padding(vertical = 4.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (isPast) "✓" else "${pillIdx + 1}",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = textColor
-                        )
-                    }
-                }
-            }
-        }
+                .height(3.dp)
+                .clip(RoundedCornerShape(2.dp)),
+            color = Indigo500,
+            trackColor = Slate800,
+        )
     }
 }
-
-private data class VerificationBadgeStyle(
-    val label: String,
-    val bg: Color,
-    val fg: Color,
-    val icon: androidx.compose.ui.graphics.vector.ImageVector
-)
 
 @Composable
 fun VerificationStatusBadge(status: String, modifier: Modifier = Modifier) {
@@ -311,7 +145,7 @@ fun VerificationStatusBadge(status: String, modifier: Modifier = Modifier) {
             )
             Text(
                 text = style.label,
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 color = style.fg
             )
@@ -352,7 +186,7 @@ fun EvidenceBottomSheet(
             ) {
                 Text(
                     text = "CodeCast grounds this step in verified project source code and runtime AST bindings.",
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     color = Slate300
                 )
 
@@ -378,7 +212,7 @@ fun EvidenceBottomSheet(
                             "// Verified AST Binding: ${step.evidenceSource.ifEmpty { "src/app/page.tsx" }}\nexport function ${step.title.replace(" ", "")}() {\n  // Handles: ${step.actionType} on ${step.screenName}\n  const trigger = document.querySelector(\"${step.evidenceElement.ifEmpty { "#cta-btn" }}\");\n  return trigger;\n}"
                         }
 
-                        Text(text = "Verified Code Implementation:", fontSize = 10.sp, color = Slate400, fontWeight = FontWeight.SemiBold)
+                        Text(text = "Verified Code Implementation:", fontSize = 11.sp, color = Slate400, fontWeight = FontWeight.SemiBold)
                         Surface(
                             color = Slate900,
                             shape = RoundedCornerShape(6.dp),
@@ -387,7 +221,7 @@ fun EvidenceBottomSheet(
                         ) {
                             Text(
                                 text = snippet,
-                                fontSize = 10.sp,
+                                fontSize = 11.sp,
                                 fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                                 color = Cyan300,
                                 modifier = Modifier.padding(8.dp)
@@ -399,7 +233,7 @@ fun EvidenceBottomSheet(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "Verification Status", fontSize = 11.sp, color = Slate400)
+                            Text(text = "Verification Status", fontSize = 12.sp, color = Slate400)
                             VerificationStatusBadge(status = step.verificationStatus)
                         }
                     }
@@ -419,7 +253,7 @@ fun EvidenceBottomSheet(
                     ) {
                         Icon(Icons.Default.Code, contentDescription = null, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Inspect Full Code", fontSize = 11.sp)
+                        Text("Inspect Full Code", fontSize = 12.sp)
                     }
                 }
                 TextButton(
@@ -438,7 +272,7 @@ fun EvidenceBottomSheet(
 @Composable
 private fun EvidenceRow(label: String, value: String, isCode: Boolean = false) {
     Column {
-        Text(text = label, fontSize = 10.sp, color = Slate400, fontWeight = FontWeight.SemiBold)
+        Text(text = label, fontSize = 11.sp, color = Slate400, fontWeight = FontWeight.SemiBold)
         if (isCode) {
             Surface(
                 color = Slate900,
@@ -449,7 +283,7 @@ private fun EvidenceRow(label: String, value: String, isCode: Boolean = false) {
             ) {
                 Text(
                     text = value,
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     color = Cyan300,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
                     fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
@@ -458,7 +292,7 @@ private fun EvidenceRow(label: String, value: String, isCode: Boolean = false) {
         } else {
             Text(
                 text = value,
-                fontSize = 12.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 color = Slate100,
                 modifier = Modifier.padding(top = 1.dp)

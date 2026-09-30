@@ -78,7 +78,7 @@ fun GenerationPipelineScreen(
                 }
 
                 if (showRecorder) {
-                    Text("Recording the live app. Keep CodeCast open until it finishes.", fontSize = 11.sp, color = Cyan300)
+                    Text("Recording the live app. Keep CodeCast open until it finishes.", fontSize = 12.sp, color = Cyan300)
                     androidx.compose.foundation.layout.BoxWithConstraints(
                         modifier = Modifier.fillMaxWidth().height(330.dp).clip(RoundedCornerShape(8.dp)).background(Color.White).testTag("recorder_host")
                     ) {
@@ -105,7 +105,7 @@ fun GenerationPipelineScreen(
                     )
                     Text(
                         text = progressState.phaseName,
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         color = if (progressState.isCompleted) Emerald400 else Cyan300,
                         modifier = Modifier.padding(top = 4.dp)
                     )
@@ -158,7 +158,7 @@ fun GenerationPipelineScreen(
                                 }
                                 Text(
                                     text = stage,
-                                    fontSize = 12.sp,
+                                    fontSize = 13.sp,
                                     color = if (isDone) Slate200 else Slate500,
                                     fontWeight = if (isDone) FontWeight.Medium else FontWeight.Normal
                                 )
@@ -167,7 +167,7 @@ fun GenerationPipelineScreen(
                             if (isDone) {
                                 Text(
                                     text = "✓",
-                                    fontSize = 12.sp,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Emerald400
                                 )

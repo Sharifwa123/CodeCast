@@ -76,15 +76,14 @@ fun VoiceLanguageScreen(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = "VOICE, ACCENT & MULTI-LANGUAGE SUBTITLES",
-                    fontSize = 11.sp,
+                    text = "Voice, accent & multi-language subtitles",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Cyan400,
-                    letterSpacing = 0.8.sp
                 )
                 Text(
                     text = "Narration language and subtitle language are configured independently. For example, narration in English with accurate Twi or French subtitles.",
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     color = Slate300
                 )
             }
@@ -102,11 +101,10 @@ fun VoiceLanguageScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "NARRATION VOICE ACTOR",
-                    fontSize = 11.sp,
+                    text = "Narration voice actor",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate400,
-                    letterSpacing = 0.6.sp
                 )
 
                 // Cloned Voice (Virtual Me) Card if active
@@ -147,12 +145,12 @@ fun VoiceLanguageScreen(
                                 }
                                 Column {
                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        Text(text = clonedVoiceName, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Slate100)
+                                        Text(text = clonedVoiceName, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Slate100)
                                         Surface(color = Emerald500.copy(alpha = 0.2f), shape = RoundedCornerShape(3.dp)) {
-                                            Text("AI DEEPFAKE CLONE", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Emerald400, modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp))
+                                            Text("AI deepfake clone", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Emerald400, modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp))
                                         }
                                     }
-                                    Text(text = "Synthesized from your authentic vocal sample (timbre + inflection match)", fontSize = 10.sp, color = Slate300)
+                                    Text(text = "Synthesized from your authentic vocal sample (timbre + inflection match)", fontSize = 11.sp, color = Slate300)
                                 }
                             }
                             RadioButton(
@@ -171,7 +169,7 @@ fun VoiceLanguageScreen(
                         }
                     }
 
-                    Text(text = "OR CHOOSE A STUDIO PRESET VOICE ACTOR", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Slate400, letterSpacing = 0.5.sp)
+                    Text(text = "Or choose a studio preset voice actor", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Slate400)
                 }
 
                 // Voice Options
@@ -222,13 +220,13 @@ fun VoiceLanguageScreen(
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = vName,
-                                    fontSize = 12.sp,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (isSelected) Slate50 else Slate300
                                 )
                                 Text(
                                     text = vGender,
-                                    fontSize = 10.sp,
+                                    fontSize = 11.sp,
                                     color = Slate500
                                 )
                             }
@@ -242,10 +240,10 @@ fun VoiceLanguageScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "Speaking Speed", fontSize = 12.sp, color = Slate300)
+                        Text(text = "Speaking Speed", fontSize = 13.sp, color = Slate300)
                         Text(
                             text = String.format("%.1fx", speakingSpeed),
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = Cyan400
                         )
@@ -279,16 +277,15 @@ fun VoiceLanguageScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
-                    text = "SEPARATE LANGUAGE CONTROLS",
-                    fontSize = 11.sp,
+                    text = "Separate language controls",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate400,
-                    letterSpacing = 0.6.sp
                 )
 
                 // Narration Language Dropdown / Chips
                 Column {
-                    Text(text = "Narration Language", fontSize = 12.sp, color = Slate300, fontWeight = FontWeight.SemiBold)
+                    Text(text = "Narration Language", fontSize = 13.sp, color = Slate300, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -304,7 +301,7 @@ fun VoiceLanguageScreen(
                             ) {
                                 Text(
                                     text = lang,
-                                    fontSize = 11.sp,
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = if (isSel) Slate50 else Slate300,
                                     modifier = Modifier.padding(vertical = 8.dp),
@@ -322,14 +319,14 @@ fun VoiceLanguageScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "Subtitle Language", fontSize = 12.sp, color = Slate300, fontWeight = FontWeight.SemiBold)
+                        Text(text = "Subtitle Language", fontSize = 13.sp, color = Slate300, fontWeight = FontWeight.SemiBold)
                         Surface(
                             color = Cyan500.copy(alpha = 0.16f),
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text(
                                 text = "Localized Dual-Track",
-                                fontSize = 9.sp,
+                                fontSize = 11.sp,
                                 color = Cyan400,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -353,7 +350,7 @@ fun VoiceLanguageScreen(
                             ) {
                                 Text(
                                     text = lang,
-                                    fontSize = 11.sp,
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = if (isSel) Slate950 else Slate300,
                                     modifier = Modifier.padding(vertical = 8.dp),
@@ -375,10 +372,10 @@ fun VoiceLanguageScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "Application UI Language:", fontSize = 11.sp, color = Slate400)
+                        Text(text = "Application UI Language:", fontSize = 12.sp, color = Slate400)
                         Text(
                             text = "English (Detected automatically from DOM/i18n)",
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = Emerald400
                         )
@@ -389,7 +386,7 @@ fun VoiceLanguageScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
                         text = "Never Translate Custom Terminology",
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         color = Slate300,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -407,7 +404,7 @@ fun VoiceLanguageScreen(
                     )
                     Text(
                         text = "Names and brand trademarks listed here will remain intact across all language translations.",
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         color = Slate400
                     )
                 }
@@ -416,7 +413,7 @@ fun VoiceLanguageScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
                         text = "Translation API key (Gemini)",
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         color = Slate300,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -435,7 +432,7 @@ fun VoiceLanguageScreen(
                     Text(
                         text = if (narrationLang == "English" && subtitleLang == "English") "Only needed when narration or subtitles are not English. Stored on this device."
                         else "Required: without it, ${if (subtitleLang != "English") subtitleLang else narrationLang} text stays in English. Stored on this device.",
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         color = Slate400
                     )
                 }
@@ -458,7 +455,7 @@ fun VoiceLanguageScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = "Add subtitles?", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Slate100)
+                    Text(text = "Add subtitles?", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Slate100)
                     Switch(
                         checked = hasSubtitles,
                         onCheckedChange = { onSubtitleConfigChange(it, subtitleStyle, subtitlePosition) },
@@ -467,7 +464,7 @@ fun VoiceLanguageScreen(
                 }
 
                 if (hasSubtitles) {
-                    Text(text = "Subtitle Style", fontSize = 11.sp, color = Slate400)
+                    Text(text = "Subtitle Style", fontSize = 12.sp, color = Slate400)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -483,7 +480,7 @@ fun VoiceLanguageScreen(
                             ) {
                                 Text(
                                     text = style.split(" ").first(),
-                                    fontSize = 10.sp,
+                                    fontSize = 11.sp,
                                     color = if (isSel) Indigo300 else Slate300,
                                     modifier = Modifier.padding(vertical = 6.dp),
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -507,7 +504,7 @@ fun VoiceLanguageScreen(
             Text(
                 text = "Continue to Appearance & Branding",
                 fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
+                fontSize = 15.sp
             )
             Spacer(modifier = Modifier.width(8.dp))
             Icon(imageVector = Icons.Default.ArrowForward, contentDescription = null)

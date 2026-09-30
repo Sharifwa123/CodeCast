@@ -115,7 +115,7 @@ fun CodeCastApp(
             if (state.currentStep == WizardStep.VIDEO_PREVIEW_EDITOR && !showKnowledgeScreen) {
                 Surface(
                     color = Slate900,
-                    tonalElevation = 6.dp,
+                    tonalElevation = 0.dp,
                     modifier = Modifier
                         .fillMaxWidth()
                         .windowInsetsPadding(WindowInsets.navigationBars)
@@ -133,12 +133,12 @@ fun CodeCastApp(
                         ) {
                             Icon(imageVector = Icons.Default.Hub, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Knowledge", fontSize = 12.sp, maxLines = 1, softWrap = false)
+                            Text("Knowledge", fontSize = 13.sp, maxLines = 1, softWrap = false)
                         }
 
                         TextButton(
                             onClick = { viewModel.toggleQualityReportDialog(true) },
-                            colors = ButtonDefaults.textButtonColors(contentColor = Emerald400),
+                            colors = ButtonDefaults.textButtonColors(contentColor = if (state.generationProgress.qualityReport?.isClean == false) Amber500 else Emerald400),
                             modifier = Modifier.testTag("quality_check_badge_btn")
                         ) {
                             Icon(imageVector = Icons.Default.Verified, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -150,7 +150,7 @@ fun CodeCastApp(
                                     report.isClean -> "Quality: passed"
                                     else -> "Quality: ${report.issues.size} issue${if (report.issues.size == 1) "" else "s"}"
                                 },
-                                fontSize = 12.sp, fontWeight = FontWeight.Bold
+                                fontSize = 13.sp, fontWeight = FontWeight.Bold
                             )
                         }
 
@@ -162,7 +162,7 @@ fun CodeCastApp(
                         ) {
                             Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("New", fontSize = 11.sp, maxLines = 1, softWrap = false)
+                            Text("New", fontSize = 12.sp, maxLines = 1, softWrap = false)
                         }
                     }
                 }

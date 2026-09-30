@@ -88,15 +88,14 @@ fun DurationPresentationScreen(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = "PACING & VISUAL PRESENTATION",
-                    fontSize = 11.sp,
+                    text = "Pacing & visual presentation",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Cyan400,
-                    letterSpacing = 0.8.sp
                 )
                 Text(
                     text = "Select your target video length and presentation layout. The engine determines optimal scene timings automatically without forcing rigid limits.",
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     color = Slate300
                 )
             }
@@ -104,11 +103,10 @@ fun DurationPresentationScreen(
 
         // Duration Section
         Text(
-            text = "TUTORIAL LENGTH",
-            fontSize = 11.sp,
+            text = "Tutorial length",
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             color = Slate400,
-            letterSpacing = 0.6.sp
         )
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -134,13 +132,13 @@ fun DurationPresentationScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = dur,
-                                fontSize = 13.sp,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isSelected) Slate50 else Slate200
                             )
                             Text(
                                 text = desc,
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 color = Slate400,
                                 modifier = Modifier.padding(top = 2.dp)
                             )
@@ -158,11 +156,10 @@ fun DurationPresentationScreen(
 
         // 3 Large Presentation Choices
         Text(
-            text = "PRESENTATION STYLE",
-            fontSize = 11.sp,
+            text = "Presentation style",
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             color = Slate400,
-            letterSpacing = 0.6.sp
         )
 
         // Option 1: Your Face + Voice
@@ -203,14 +200,14 @@ fun DurationPresentationScreen(
                         }
                         Column {
                             Text(
-                                text = "OPTION 1 — YOUR FACE + VOICE",
-                                fontSize = 13.sp,
+                                text = "Option 1 — your face + voice",
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Slate50
                             )
                             Text(
                                 text = "Presenter explains tutorial in picture-in-picture while app is shown.",
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 color = Slate400
                             )
                         }
@@ -233,16 +230,15 @@ fun DurationPresentationScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "1. VIRTUAL ME — FACE & AVATAR LIKENESS",
-                            fontSize = 11.sp,
+                            text = "1. virtual me — face & avatar likeness",
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = Cyan400,
-                            letterSpacing = 0.5.sp
                         )
                         Surface(color = Cyan500.copy(alpha = 0.2f), shape = RoundedCornerShape(4.dp)) {
                             Text(
-                                text = "DEEPFAKE AVATAR",
-                                fontSize = 9.sp,
+                                text = "Deepfake avatar",
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Cyan400,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -300,7 +296,7 @@ fun DurationPresentationScreen(
                             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     text = if (presenterFaceUri != null) "✓ My Uploaded Face Active" else "Upload Your Face / Headshot",
-                                    fontSize = 12.sp,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (presenterFaceUri != null) Emerald400 else Slate100
                                 )
@@ -309,7 +305,7 @@ fun DurationPresentationScreen(
                                         "Facial mesh & gaze calibrated for tutorial PiP presentation."
                                     else
                                         "Choose a photo to show as the presenter (a circle in the video).",
-                                    fontSize = 11.sp,
+                                    fontSize = 12.sp,
                                     color = Slate400
                                 )
 
@@ -326,7 +322,7 @@ fun DurationPresentationScreen(
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = if (presenterFaceUri != null) "Change Photo" else "Upload Face Photo (Gallery)",
-                                        fontSize = 11.sp,
+                                        fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                 }
@@ -335,7 +331,7 @@ fun DurationPresentationScreen(
                     }
 
                     // Avatar Framing & Placement
-                    Text(text = "Presenter Framing & Placement", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Slate300)
+                    Text(text = "Presenter Framing & Placement", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Slate300)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf(
                             Triple("circle", "Circle (PiP)", Icons.Default.Circle),
@@ -356,7 +352,7 @@ fun DurationPresentationScreen(
                                     verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Icon(icon, contentDescription = null, tint = if (isSel) Indigo400 else Slate400, modifier = Modifier.size(16.dp))
-                                    Text(label, fontSize = 10.sp, fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal, color = if (isSel) Slate50 else Slate400)
+                                    Text(label, fontSize = 11.sp, fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal, color = if (isSel) Slate50 else Slate400)
                                 }
                             }
                         }
@@ -380,7 +376,7 @@ fun DurationPresentationScreen(
                             )
                             Text(
                                 text = "I confirm I own, or have consent to use, the photo I add as presenter.",
-                                fontSize = 10.sp,
+                                fontSize = 11.sp,
                                 color = Slate300
                             )
                         }
@@ -424,8 +420,8 @@ fun DurationPresentationScreen(
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
-                                text = "OPTION 2 — VOICE ONLY",
-                                fontSize = 13.sp,
+                                text = "Option 2 — voice only",
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Slate50
                             )
@@ -435,12 +431,12 @@ fun DurationPresentationScreen(
                                     .background(Emerald500.copy(alpha = 0.2f))
                                     .padding(horizontal = 4.dp, vertical = 1.dp)
                             ) {
-                                Text("RECOMMENDED", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Emerald400)
+                                Text("Recommended", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Emerald400)
                             }
                         }
                         Text(
                             text = "Direct screen recording with cursor movement, zoom highlights, action callouts, and clean voice narration.",
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             color = Slate400,
                             modifier = Modifier.padding(top = 2.dp)
                         )
@@ -489,14 +485,14 @@ fun DurationPresentationScreen(
                     }
                     Column {
                         Text(
-                            text = "OPTION 3 — ILLUSTRATED",
-                            fontSize = 13.sp,
+                            text = "Option 3 — illustrated",
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = Slate50
                         )
                         Text(
                             text = "Instructional diagrams, workflow arrows, UI component callouts, and animated schematics.",
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             color = Slate400,
                             modifier = Modifier.padding(top = 2.dp)
                         )
@@ -525,7 +521,7 @@ fun DurationPresentationScreen(
             Text(
                 text = "Continue to Voice Selection",
                 fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
+                fontSize = 15.sp
             )
             Spacer(modifier = Modifier.width(8.dp))
             Icon(imageVector = Icons.Default.ArrowForward, contentDescription = null)
