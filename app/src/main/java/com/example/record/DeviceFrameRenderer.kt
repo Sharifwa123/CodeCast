@@ -26,7 +26,7 @@ class DeviceFrameRenderer(
     private val text = TextPaint(Paint.ANTI_ALIAS_FLAG)
     private val time = java.text.SimpleDateFormat("h:mm", java.util.Locale.US)
 
-    fun render(out: Bitmap, page: Bitmap, subtitle: String, stepIndex: Int, totalSteps: Int) {
+    fun render(out: Bitmap, page: Bitmap, subtitle: String, stepIndex: Int, totalSteps: Int, presenterFrame: Bitmap? = null) {
         val c = Canvas(out)
         val dark = profile.family == "linux" || profile.family == "windows"
         c.drawColor(if (profile.isMobile) Color.BLACK else if (dark) Color.parseColor("#202124") else Color.parseColor("#E8E8EA"))
@@ -51,7 +51,7 @@ class DeviceFrameRenderer(
             fill.color = Color.argb(140, 15, 23, 42); c.drawRoundRect(RectF(w - tw - 34f, content.top + 10f, w - 10f, content.top + 44f), 10f, 10f, fill)
             c.drawText(it, w - tw - 22f, content.top + 33f, text)
         }
-        presenter?.let { drawPresenter(c, it, content) }
+        (presenterFrame ?: presenter)?.let { drawPresenter(c, it, content) }
     }
 
     private fun urlPill(c: Canvas, r: RectF, dark: Boolean) {

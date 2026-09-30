@@ -166,7 +166,7 @@ class WebRecorder(private val webView: WebView, private val profile: DeviceProfi
     }
 }
 
-class RecordedFrame(val page: Bitmap, val ptsUs: Long, val subtitle: String, val step: Int, val total: Int)
+class RecordedFrame(val page: Bitmap, val ptsUs: Long, val subtitle: String, val step: Int, val total: Int, val clip: File? = null, val clipStartUs: Long = 0)
 
 /** Captures the WebView at a steady rate while the script runs, encodes to video, then muxes narration in. */
 class RecordingSession(
@@ -185,6 +185,8 @@ class RecordingSession(
     private var captureJob: Job? = null
     private var encodeJob: Job? = null
     @Volatile var subtitle: String = ""
+    @Volatile var presenterClip: File? = null
+    @Volatile var presenterClipStartUs: Long = 0
     @Volatile var step: Int = 0
     @Volatile var totalSteps: Int = 1
     @Volatile var frameCount = 0
@@ -198,15 +200,25 @@ class RecordingSession(
         val renderer = DeviceFrameRenderer(profile, host, watermark, showSubtitles, presenter)
         encodeJob = scope.launch(Dispatchers.Default) {
             val out = Bitmap.createBitmap(profile.outWidth, profile.outHeight, Bitmap.Config.ARGB_8888)
+            val retrievers = HashMap<String, android.media.MediaMetadataRetriever>()
             try {
                 for (f in frames) {
+                    var face: Bitmap? = null
                     try {
-                        renderer.render(out, f.page, f.subtitle, f.step, f.total)
+                        face = f.clip?.let { clip ->
+                            try {
+                                retrievers.getOrPut(clip.path) { android.media.MediaMetadataRetriever().apply { setDataSource(clip.path) } }
+                                    .getFrameAtTime((f.ptsUs - f.clipStartUs).coerceAtLeast(0), android.media.MediaMetadataRetriever.OPTION_CLOSEST)
+                            } catch (_: Exception) { null }
+                        }
+                        renderer.render(out, f.page, f.subtitle, f.step, f.total, face)
                         encoder.addFrame(out, f.ptsUs)
                     } catch (t: Throwable) { encodeError = t }
+                    face?.recycle()
                     f.page.recycle()
                 }
             } finally {
+                retrievers.values.forEach { try { it.release() } catch (_: Exception) {} }
                 out.recycle()
                 try { encoder.finish() } catch (t: Throwable) { encodeError = encodeError ?: t }
             }
@@ -218,7 +230,7 @@ class RecordingSession(
                 val bmp = Bitmap.createBitmap(profile.contentWidth, profile.contentHeight, Bitmap.Config.ARGB_8888)
                 recorder.capture(bmp)
                 val pts = (SystemClock.elapsedRealtimeNanos() - startNs) / 1000
-                if (frames.trySend(RecordedFrame(bmp, pts, subtitle, step, totalSteps)).isSuccess) frameCount++ else bmp.recycle()
+                if (frames.trySend(RecordedFrame(bmp, pts, subtitle, step, totalSteps, presenterClip, presenterClipStartUs)).isSuccess) frameCount++ else bmp.recycle()
                 delay((interval - (SystemClock.elapsedRealtime() - t0)).coerceAtLeast(1))
             }
         }

@@ -57,7 +57,8 @@ fun DurationPresentationScreen(
     onPickAudioFile: () -> Unit = {},
     onTuneVoicePitch: (Float) -> Unit = {},
     onTestVoicePreview: () -> Unit = {},
-    onContinueClick: () -> Unit
+    onContinueClick: () -> Unit,
+    extraContent: @Composable ColumnScope.() -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
 
@@ -509,6 +510,8 @@ fun DurationPresentationScreen(
                 )
             }
         }
+
+        extraContent()
 
         // Continue Button
         Button(

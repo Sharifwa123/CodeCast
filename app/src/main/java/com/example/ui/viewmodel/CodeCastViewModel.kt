@@ -7,6 +7,7 @@ import android.content.Context
 import android.net.Uri
 import com.example.BuildConfig
 import com.example.ai.GeminiTranslator
+import com.example.clone.RemoteClone
 import com.example.analysis.*
 import com.example.data.model.*
 import com.example.data.repository.CodeCastRepository
@@ -66,6 +67,11 @@ data class CodeCastUiState(
     val isFetching: Boolean = false,
     val ingestError: String? = null,
     val geminiApiKey: String = "",
+    val cloneEndpoint: String = "",
+    val cloneToken: String = "",
+    val cloneStatus: String? = null,
+    val cloneChecking: Boolean = false,
+    val voiceSampleInfo: String? = null,
     val recordMode: String = "SCREEN", // "SCREEN" = record the live app, "SLIDES" = code slides only
     val liveUrl: String = "",
     val urlCandidates: List<UrlCandidate> = emptyList(),
@@ -173,7 +179,15 @@ class CodeCastViewModel(
     private val prefs = appContext.getSharedPreferences("codecast_prefs", Context.MODE_PRIVATE)
 
     init {
-        _uiState.update { it.copy(geminiApiKey = prefs.getString("gemini_key", "") ?: "") }
+        _uiState.update {
+            it.copy(
+                geminiApiKey = prefs.getString("gemini_key", "") ?: "",
+                cloneEndpoint = prefs.getString("clone_endpoint", "") ?: "",
+                cloneToken = prefs.getString("clone_token", "") ?: "",
+                hasClonedVoice = voiceReference() != null,
+                voiceSampleInfo = voiceReference()?.let { f -> "${f.name} (${f.length() / 1024} KB)" }
+            )
+        }
         loadInitialData()
     }
 
@@ -274,6 +288,8 @@ class CodeCastViewModel(
     private var recorder: WebRecorder? = null
     private var liveSpecs = HashMap<Int, ElementSpec>()
     private var lastReport: ReconcileReport? = null
+    private var cloneNote: String? = null
+    private var presenterClips = HashMap<Int, File>()
 
     private suspend fun acquireRecorder(): WebRecorder {
         recorder?.let { return it }
@@ -377,31 +393,70 @@ class CodeCastViewModel(
     }
 
     private var voiceRecordJob: Job? = null
+    @Volatile private var stopVoice = false
 
+    private fun voiceReference(): File? = appContext.filesDir.listFiles { f -> f.name.startsWith("voice_reference.") }?.maxByOrNull { it.lastModified() }
+
+    fun setCloneEndpoint(url: String) { prefs.edit().putString("clone_endpoint", url.trim()).apply(); _uiState.update { it.copy(cloneEndpoint = url.trim(), cloneStatus = null) } }
+    fun setCloneToken(t: String) { prefs.edit().putString("clone_token", t.trim()).apply(); _uiState.update { it.copy(cloneToken = t.trim()) } }
+
+    fun testCloneConnection() {
+        val st = _uiState.value
+        if (st.cloneEndpoint.isBlank()) { _uiState.update { it.copy(cloneStatus = "Paste your clone server URL first") }; return }
+        viewModelScope.launch {
+            _uiState.update { it.copy(cloneChecking = true, cloneStatus = null) }
+            val err = withContext(Dispatchers.IO) { RemoteClone.health(st.cloneEndpoint, st.cloneToken) }
+            _uiState.update { it.copy(cloneChecking = false, cloneStatus = err ?: "Connected") }
+        }
+    }
+
+    /** Records the microphone for up to 15 s (real audio, saved as the voice reference). */
     fun startVoiceRecording() {
         voiceRecordJob?.cancel()
+        stopVoice = false
         _uiState.update { it.copy(isRecordingVoice = true, recordingDurationSec = 0) }
-        voiceRecordJob = viewModelScope.launch {
-            while (_uiState.value.isRecordingVoice && _uiState.value.recordingDurationSec < 30) {
+        val timer = viewModelScope.launch {
+            while (_uiState.value.isRecordingVoice && _uiState.value.recordingDurationSec < 15) {
                 delay(1000)
                 _uiState.update { it.copy(recordingDurationSec = it.recordingDurationSec + 1) }
             }
         }
-    }
-
-    fun stopVoiceRecording() {
-        voiceRecordJob?.cancel()
-        _uiState.update {
-            it.copy(
-                isRecordingVoice = false,
-                notificationMessage = "Voice cloning isn't available on-device. Narration uses the system text-to-speech voice you selected."
-            )
+        voiceRecordJob = viewModelScope.launch {
+            try {
+                val wav = VoiceSampleRecorder.record(15, shouldStop = { stopVoice })
+                val secs = WavData.parse(wav)?.seconds ?: 0.0
+                timer.cancel()
+                if (secs < 3.0) {
+                    _uiState.update { it.copy(isRecordingVoice = false, notificationMessage = "That was too short. Record at least 5 seconds of clear speech.") }
+                } else {
+                    appContext.filesDir.listFiles { f -> f.name.startsWith("voice_reference.") }?.forEach { it.delete() }
+                    val f = File(appContext.filesDir, "voice_reference.wav").also { it.writeBytes(wav) }
+                    _uiState.update { it.copy(isRecordingVoice = false, hasClonedVoice = true, voiceSampleInfo = "recording ${secs.toInt()} s", notificationMessage = "Voice sample saved (${secs.toInt()} s).") }
+                }
+            } catch (e: Exception) {
+                timer.cancel()
+                _uiState.update { it.copy(isRecordingVoice = false, notificationMessage = "Recording failed: ${e.message}") }
+            }
         }
     }
 
+    fun stopVoiceRecording() { stopVoice = true }
+
+    /** Uses an existing audio file (wav, mp3, m4a...) as the voice reference. */
     fun setVoiceAudioSampleUri(uriString: String) {
-        _uiState.update {
-            it.copy(notificationMessage = "Voice cloning isn't available on-device. Narration uses the system text-to-speech voice you selected.")
+        viewModelScope.launch {
+            try {
+                val uri = Uri.parse(uriString)
+                val name = appContext.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null } ?: "sample.wav"
+                val ext = name.substringAfterLast('.', "wav").lowercase().take(5)
+                val bytes = withContext(Dispatchers.IO) { appContext.contentResolver.openInputStream(uri)?.use { it.readBytes() } } ?: error("Could not read the file")
+                require(bytes.size in 20_000..30_000_000) { "The audio file must be between 20 KB and 30 MB" }
+                appContext.filesDir.listFiles { f -> f.name.startsWith("voice_reference.") }?.forEach { it.delete() }
+                File(appContext.filesDir, "voice_reference.$ext").writeBytes(bytes)
+                _uiState.update { it.copy(hasClonedVoice = true, voiceSampleInfo = "$name (${bytes.size / 1024} KB)", notificationMessage = "Voice sample saved.") }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(notificationMessage = "Could not use that file: ${e.message}") }
+            }
         }
     }
 
@@ -802,6 +857,25 @@ class CodeCastViewModel(
         scenes: List<GeneratedSceneEntity>, tutorial: TutorialPlanEntity, onProgress: (Float) -> Unit
     ): Triple<List<GeneratedSceneEntity>, Map<Int, WavData?>, Boolean> {
         val st = _uiState.value
+        cloneNote = null
+        val ref = voiceReference()
+        if (st.cloneEndpoint.isNotBlank() && ref != null) {
+            val refBytes = ref.readBytes()
+            val audio = LinkedHashMap<Int, WavData?>()
+            var failed: String? = null
+            val out = scenes.mapIndexed { i, sc ->
+                val wav = if (failed != null) null else try {
+                    withContext(Dispatchers.IO) { WavData.parse(RemoteClone.synthesize(st.cloneEndpoint, st.cloneToken, sc.narrationScript, tutorial.narrationLang, refBytes, ref.name)) }
+                        ?: throw RemoteClone.CloneException("The server did not return a WAV file")
+                } catch (e: Exception) { failed = e.message ?: "unknown error"; null }
+                audio[sc.sceneOrder] = wav
+                onProgress((i + 1f) / scenes.size)
+                val needed = wav?.let { Math.ceil(it.seconds + 0.7).toInt() } ?: 0
+                if (needed > sc.durationSeconds) sc.copy(durationSeconds = needed).also { repository.updateScene(it) } else sc
+            }
+            if (failed == null) return Triple(out, audio, true)
+            cloneNote = "Your voice clone server failed ($failed), so the phone's own voice was used."
+        }
         val narrator = Narrator(appContext)
         try {
             if (!narrator.prepare(tutorial.narrationLang, tutorial.speakingSpeed, pitchFor(st))) {
@@ -950,12 +1024,32 @@ class CodeCastViewModel(
         val (_, audio, audioOk) = narrate(planned, tutorial, onProgress = { p -> setStage("Synthesizing narration audio", 0.25f + 0.25f * p, done) })
         done.add(if (audioOk) "Narration audio synthesized" else "No speech engine for ${tutorial.narrationLang} (video will be silent)")
         var finalScenes = repository.getScenesList(tutorial.id)
-        var extra: List<QualityCheckIssue> = emptyList()
+        var extra: List<QualityCheckIssue> = cloneNote?.let { listOf(QualityCheckIssue(0, "Narration voice", "Voice clone unavailable", it, "Check the server URL and that it is running, then regenerate.")) } ?: emptyList()
+        presenterClips = HashMap()
+        val stNow = _uiState.value
+        if (stNow.recordMode == "SCREEN" && stNow.cloneEndpoint.isNotBlank() && stNow.presentationType == "FACE_AND_VOICE" && stNow.presenterFaceUri != null && audioOk) {
+            val face = try { appContext.contentResolver.openInputStream(Uri.parse(stNow.presenterFaceUri))?.use { it.readBytes() } } catch (_: Exception) { null }
+            if (face != null) {
+                var failed: String? = null
+                finalScenes.forEachIndexed { i, sc ->
+                    val wav = audio[sc.sceneOrder] ?: return@forEachIndexed
+                    if (failed != null) return@forEachIndexed
+                    setStage("Animating your presenter (${i + 1} of ${finalScenes.size})", 0.45f + 0.05f * i / finalScenes.size, done)
+                    try {
+                        val rate = wav.sampleRate
+                        val mp4 = withContext(Dispatchers.IO) { RemoteClone.talkingHead(stNow.cloneEndpoint, stNow.cloneToken, face, "face.jpg", WavWriter.write(wav.toMono(rate), rate)) }
+                        presenterClips[sc.sceneOrder] = File(appContext.cacheDir, "presenter_${System.nanoTime()}.mp4").also { it.writeBytes(mp4) }
+                    } catch (e: Exception) { failed = e.message }
+                }
+                failed?.let { extra = extra + QualityCheckIssue(0, "Presenter", "Presenter not animated", "The talking-head server failed ($it); your photo is shown as a still circle.", "Enable /talking-head on your server, or ignore to keep the still photo.") }
+                if (presenterClips.isNotEmpty()) done.add("Animated presenter for ${presenterClips.size} scenes")
+            }
+        }
         val file: File
         if (_uiState.value.recordMode == "SCREEN") {
             val r = recordScreens(tutorial, steps, finalScenes, audio, done)
             file = r.file
-            extra = r.issues + (lastReport?.let { rep ->
+            extra = extra + r.issues + (lastReport?.let { rep ->
                 rep.codeOnly.map { (t, why) -> QualityCheckIssue(0, t, "Code and live site differ", why, "Update the deployed site or the code so they match, or remove the step.") } +
                     rep.pageNotes.map { QualityCheckIssue(0, "Live page", "Live page note", it, "Check the URL or sign-in requirements.") }
             } ?: emptyList())
@@ -1047,6 +1141,8 @@ class CodeCastViewModel(
                     val t0 = session.elapsedSec
                     val speech = wav?.seconds ?: ScenePlanner.spokenSeconds(scene.narrationScript, tutorial.speakingSpeed)
                     if (wav != null) placements.add(t0 to wav)
+                    session.presenterClip = presenterClips[scene.sceneOrder]
+                    session.presenterClipStartUs = (t0 * 1_000_000).toLong()
                     when (action) {
                         is PlannedAction.Navigate -> if (action.url != currentUrl) {
                             if (recorder.load(action.url)) currentUrl = action.url

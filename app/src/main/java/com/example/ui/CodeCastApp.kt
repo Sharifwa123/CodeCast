@@ -297,7 +297,25 @@ fun CodeCastApp(
                             onPickAudioFile = { audioLauncher.launch(arrayOf("audio/*", "*/*")) },
                             onTuneVoicePitch = { viewModel.setClonedVoicePitch(it) },
                             onTestVoicePreview = { viewModel.testPlayVoiceSample() },
-                            onContinueClick = { viewModel.goToStep(WizardStep.CHOOSE_VOICE) }
+                            onContinueClick = { viewModel.goToStep(WizardStep.CHOOSE_VOICE) },
+                            extraContent = {
+                                CloneSetupCard(
+                                    endpoint = state.cloneEndpoint,
+                                    token = state.cloneToken,
+                                    status = state.cloneStatus,
+                                    checking = state.cloneChecking,
+                                    sampleInfo = state.voiceSampleInfo,
+                                    isRecording = state.isRecordingVoice,
+                                    recordingSec = state.recordingDurationSec,
+                                    hasPhoto = state.presenterFaceUri != null,
+                                    onEndpointChange = { viewModel.setCloneEndpoint(it) },
+                                    onTokenChange = { viewModel.setCloneToken(it) },
+                                    onTest = { viewModel.testCloneConnection() },
+                                    onRecord = { micPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO) },
+                                    onStop = { viewModel.stopVoiceRecording() },
+                                    onPickAudio = { audioLauncher.launch(arrayOf("audio/*")) }
+                                )
+                            }
                         )
                     }
 
