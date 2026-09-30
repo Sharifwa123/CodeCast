@@ -47,15 +47,14 @@ fun ProjectKnowledgeScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "PERSISTENT PROJECT KNOWLEDGE LAYER",
-                    fontSize = 11.sp,
+                    text = "Persistent project knowledge layer",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Cyan400,
-                    letterSpacing = 0.8.sp
                 )
                 Text(
                     text = "Cached understanding of ${project?.name ?: "Application"} is stored locally. Generate videos, user manuals, onboarding materials, or API guides instantly without re-uploading or re-parsing.",
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     color = Slate300
                 )
 
@@ -68,7 +67,7 @@ fun ProjectKnowledgeScreen(
                     ) {
                         Icon(Icons.Default.Code, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Browse Verified Source Code Files", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Browse Verified Source Code Files", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -100,7 +99,7 @@ fun ProjectKnowledgeScreen(
                     ) {
                         Text(
                             text = title,
-                            fontSize = 13.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = Slate100
                         )
@@ -110,7 +109,7 @@ fun ProjectKnowledgeScreen(
                         ) {
                             Text(
                                 text = subtitle,
-                                fontSize = 9.sp,
+                                fontSize = 11.sp,
                                 color = Cyan400,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
@@ -127,7 +126,7 @@ fun ProjectKnowledgeScreen(
                         items.forEach { itm ->
                             Text(
                                 text = "• $itm",
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 color = Slate300,
                                 fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
                             )

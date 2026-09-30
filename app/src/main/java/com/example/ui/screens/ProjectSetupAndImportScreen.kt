@@ -89,7 +89,7 @@ fun ProjectSetupAndImportScreen(
                     }
                     Text(
                         text = "Automated Codebase-to-Video Engine",
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = Slate100
                     )
@@ -97,7 +97,7 @@ fun ProjectSetupAndImportScreen(
 
                 Text(
                     text = "Upload or connect your application codebase. CodeCast scans pages, AST routes, forms, and verified UI workflows to synthesize accurate video tutorials without manual prompt engineering.",
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     color = Slate300,
                     lineHeight = 18.sp
                 )
@@ -116,17 +116,16 @@ fun ProjectSetupAndImportScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "PROJECT DETAILS",
-                    fontSize = 11.sp,
+                    text = "Project details",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate400,
-                    letterSpacing = 0.8.sp
                 )
 
                 OutlinedTextField(
                     value = projectNameInput,
                     onValueChange = onProjectNameChange,
-                    label = { Text("Project Name", fontSize = 12.sp) },
+                    label = { Text("Project Name", fontSize = 13.sp) },
                     placeholder = { Text("e.g. My Next.js SaaS App") },
                     singleLine = true,
                     modifier = Modifier
@@ -152,11 +151,10 @@ fun ProjectSetupAndImportScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "CONNECT APPLICATION SOURCE",
-                    fontSize = 11.sp,
+                    text = "Connect application source",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate400,
-                    letterSpacing = 0.8.sp
                 )
 
                 val sources = listOf(
@@ -197,7 +195,7 @@ fun ProjectSetupAndImportScreen(
                                 )
                                 Text(
                                     text = title,
-                                    fontSize = 13.sp,
+                                    fontSize = 14.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     color = if (isSelected) Slate50 else Slate300
                                 )
@@ -252,12 +250,12 @@ fun ProjectSetupAndImportScreen(
                                                 Text(
                                                     text = uploadedZipFileName,
                                                     fontWeight = FontWeight.Bold,
-                                                    fontSize = 13.sp,
+                                                    fontSize = 14.sp,
                                                     color = Slate100
                                                 )
                                                 Text(
                                                     text = "Archive size: $uploadedZipFileSize • $uploadedZipEntryCount files indexed",
-                                                    fontSize = 11.sp,
+                                                    fontSize = 12.sp,
                                                     color = Slate300
                                                 )
                                             }
@@ -274,7 +272,7 @@ fun ProjectSetupAndImportScreen(
                                         Surface(color = Slate900, shape = RoundedCornerShape(4.dp)) {
                                             Text(
                                                 text = "Framework: ${uploadedZipFramework ?: "Detected"}",
-                                                fontSize = 10.sp,
+                                                fontSize = 11.sp,
                                                 color = Cyan400,
                                                 fontWeight = FontWeight.SemiBold,
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
@@ -283,7 +281,7 @@ fun ProjectSetupAndImportScreen(
                                         Surface(color = Slate900, shape = RoundedCornerShape(4.dp)) {
                                             Text(
                                                 text = "Source indexed ✓",
-                                                fontSize = 10.sp,
+                                                fontSize = 11.sp,
                                                 color = Emerald400,
                                                 fontWeight = FontWeight.Bold,
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
@@ -304,7 +302,7 @@ fun ProjectSetupAndImportScreen(
                                             ) {
                                                 Icon(Icons.Default.Code, contentDescription = null, modifier = Modifier.size(15.dp))
                                                 Spacer(modifier = Modifier.width(4.dp))
-                                                Text("Inspect Code", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                                Text("Inspect Code", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                             }
                                         }
 
@@ -317,7 +315,7 @@ fun ProjectSetupAndImportScreen(
                                         ) {
                                             Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(15.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Replace ZIP", fontSize = 11.sp)
+                                            Text("Replace ZIP", fontSize = 12.sp)
                                         }
                                     }
                                 }
@@ -357,12 +355,12 @@ fun ProjectSetupAndImportScreen(
                                     Text(
                                         text = "Drop or Choose Codebase ZIP Archive",
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp,
+                                        fontSize = 14.sp,
                                         color = Slate100
                                     )
                                     Text(
                                         text = "Supports React, Next.js, Vue, Angular, Svelte, Flutter, FastAPI, Laravel & Node.js codebases.",
-                                        fontSize = 11.sp,
+                                        fontSize = 12.sp,
                                         color = Slate400,
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                     )
@@ -376,7 +374,7 @@ fun ProjectSetupAndImportScreen(
                                     ) {
                                         Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text("Browse Device Files (.zip)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                        Text("Browse Device Files (.zip)", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
                             }
@@ -386,7 +384,7 @@ fun ProjectSetupAndImportScreen(
                     OutlinedTextField(
                         value = repoUrlInput,
                         onValueChange = onRepoUrlChange,
-                        label = { Text("Repository URL", fontSize = 12.sp) },
+                        label = { Text("Repository URL", fontSize = 13.sp) },
                         placeholder = { Text("https://github.com/org/repo") },
                         singleLine = true,
                         modifier = Modifier
@@ -413,15 +411,14 @@ fun ProjectSetupAndImportScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "AUTOMATIC FRAMEWORK & AST SUPPORT",
-                    fontSize = 11.sp,
+                    text = "Automatic framework & AST support",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate400,
-                    letterSpacing = 0.6.sp
                 )
                 Text(
                     text = "CodeCast auto-indexes routes, components, and controllers across modern software stacks:",
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     color = Slate300
                 )
 
@@ -441,7 +438,7 @@ fun ProjectSetupAndImportScreen(
                         ) {
                             Text(
                                 text = fw,
-                                fontSize = 10.sp,
+                                fontSize = 11.sp,
                                 color = Slate200,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                             )
@@ -453,7 +450,7 @@ fun ProjectSetupAndImportScreen(
                     ) {
                         Text(
                             text = "+9 more",
-                            fontSize = 10.sp,
+                            fontSize = 11.sp,
                             color = Indigo400,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
@@ -483,14 +480,14 @@ fun ProjectSetupAndImportScreen(
                 )
                 Text(
                     text = "Your code is analysed on this device. Repository URLs are downloaded over HTTPS (public repositories only).",
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                     color = Slate400
                 )
             }
         }
 
         if (errorMessage != null) {
-            Text(text = errorMessage, color = Color(0xFFF87171), fontSize = 12.sp, modifier = Modifier.testTag("ingest_error"))
+            Text(text = errorMessage, color = Color(0xFFF87171), fontSize = 13.sp, modifier = Modifier.testTag("ingest_error"))
         }
 
         // Primary Action
@@ -509,7 +506,7 @@ fun ProjectSetupAndImportScreen(
             Text(
                 text = if (isBusy) "Reading codebase…" else "Analyze Codebase & Discover Workflows",
                 fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
+                fontSize = 15.sp
             )
         }
     }

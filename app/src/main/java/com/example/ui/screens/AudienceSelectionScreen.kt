@@ -64,15 +64,14 @@ fun AudienceSelectionScreen(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = "TARGET AUDIENCE & EXPERIENCE",
-                    fontSize = 11.sp,
+                    text = "Target audience & experience",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Cyan400,
-                    letterSpacing = 0.8.sp
                 )
                 Text(
                     text = "Who are you teaching? CodeCast tailors vocabulary, explanation depth, and pacing automatically based on your selections.",
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     color = Slate300
                 )
             }
@@ -80,11 +79,10 @@ fun AudienceSelectionScreen(
 
         // Audience Section
         Text(
-            text = "WHO IS THIS TUTORIAL FOR?",
-            fontSize = 11.sp,
+            text = "Who is this tutorial for?",
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             color = Slate400,
-            letterSpacing = 0.6.sp
         )
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -110,13 +108,13 @@ fun AudienceSelectionScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = audience,
-                                fontSize = 13.sp,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isSelected) Slate50 else Slate200
                             )
                             Text(
                                 text = desc,
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 color = Slate400,
                                 modifier = Modifier.padding(top = 2.dp)
                             )
@@ -134,11 +132,10 @@ fun AudienceSelectionScreen(
 
         // Experience Level Section
         Text(
-            text = "EXPERIENCE LEVEL",
-            fontSize = 11.sp,
+            text = "Experience level",
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             color = Slate400,
-            letterSpacing = 0.6.sp
         )
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -164,13 +161,13 @@ fun AudienceSelectionScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = level,
-                                fontSize = 13.sp,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isSelected) Slate50 else Slate200
                             )
                             Text(
                                 text = desc,
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 color = Slate400,
                                 modifier = Modifier.padding(top = 2.dp)
                             )
@@ -198,7 +195,7 @@ fun AudienceSelectionScreen(
             Text(
                 text = "Continue to Duration & Presentation",
                 fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
+                fontSize = 15.sp
             )
             Spacer(modifier = Modifier.width(8.dp))
             Icon(imageVector = Icons.Default.ArrowForward, contentDescription = null)

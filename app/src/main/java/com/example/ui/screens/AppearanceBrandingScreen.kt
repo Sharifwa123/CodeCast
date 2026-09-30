@@ -53,15 +53,14 @@ fun AppearanceBrandingScreen(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = "VISUAL POLISH & BRANDING",
-                    fontSize = 11.sp,
+                    text = "Visual polish & branding",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Cyan400,
-                    letterSpacing = 0.8.sp
                 )
                 Text(
                     text = "Fine-tune cursor indicators, zoom focus, audio bed, and watermarks to match your company brand guidelines.",
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     color = Slate300
                 )
             }
@@ -79,15 +78,14 @@ fun AppearanceBrandingScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "SCREEN VISUAL STYLING",
-                    fontSize = 11.sp,
+                    text = "Screen visual styling",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate400,
-                    letterSpacing = 0.6.sp
                 )
 
                 // Cursor Style
-                Text(text = "Cursor Effect", fontSize = 11.sp, color = Slate300)
+                Text(text = "Cursor Effect", fontSize = 12.sp, color = Slate300)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -103,7 +101,7 @@ fun AppearanceBrandingScreen(
                         ) {
                             Text(
                                 text = cur,
-                                fontSize = 10.sp,
+                                fontSize = 11.sp,
                                 color = if (isSel) Indigo300 else Slate300,
                                 modifier = Modifier.padding(vertical = 8.dp),
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -118,7 +116,7 @@ fun AppearanceBrandingScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "Callout Details", fontSize = 11.sp, color = Slate300)
+                        Text(text = "Callout Details", fontSize = 12.sp, color = Slate300)
                         Spacer(modifier = Modifier.height(4.dp))
                         listOf("Minimal", "Detailed").forEach { c ->
                             Row(
@@ -130,13 +128,13 @@ fun AppearanceBrandingScreen(
                                     onClick = { onVisualChange(cursorStyle, c, zoomStyle, transitionStyle) },
                                     colors = RadioButtonDefaults.colors(selectedColor = Indigo400)
                                 )
-                                Text(text = c, fontSize = 11.sp, color = Slate200)
+                                Text(text = c, fontSize = 12.sp, color = Slate200)
                             }
                         }
                     }
 
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "Camera Zoom", fontSize = 11.sp, color = Slate300)
+                        Text(text = "Camera Zoom", fontSize = 12.sp, color = Slate300)
                         Spacer(modifier = Modifier.height(4.dp))
                         listOf("Automatic", "Manual").forEach { z ->
                             Row(
@@ -148,7 +146,7 @@ fun AppearanceBrandingScreen(
                                     onClick = { onVisualChange(cursorStyle, calloutStyle, z, transitionStyle) },
                                     colors = RadioButtonDefaults.colors(selectedColor = Cyan400)
                                 )
-                                Text(text = z, fontSize = 11.sp, color = Slate200)
+                                Text(text = z, fontSize = 12.sp, color = Slate200)
                             }
                         }
                     }
@@ -168,11 +166,10 @@ fun AppearanceBrandingScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "BACKGROUND MUSIC BED",
-                    fontSize = 11.sp,
+                    text = "Background music bed",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate400,
-                    letterSpacing = 0.6.sp
                 )
 
                 Row(
@@ -190,7 +187,7 @@ fun AppearanceBrandingScreen(
                         ) {
                             Text(
                                 text = m,
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 color = if (isSel) Indigo300 else Slate300,
                                 modifier = Modifier.padding(vertical = 8.dp),
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -205,8 +202,8 @@ fun AppearanceBrandingScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(text = "Music Bed Volume (Voice remains dominant)", fontSize = 11.sp, color = Slate400)
-                            Text(text = "${(musicVolume * 100).toInt()}%", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Slate200)
+                            Text(text = "Music Bed Volume (Voice remains dominant)", fontSize = 12.sp, color = Slate400)
+                            Text(text = "${(musicVolume * 100).toInt()}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Slate200)
                         }
                         Slider(
                             value = musicVolume,
@@ -234,11 +231,10 @@ fun AppearanceBrandingScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "BRANDING & WATERMARK",
-                    fontSize = 11.sp,
+                    text = "Branding & watermark",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate400,
-                    letterSpacing = 0.6.sp
                 )
 
                 Row(
@@ -256,7 +252,7 @@ fun AppearanceBrandingScreen(
                         ) {
                             Text(
                                 text = wm,
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 color = if (isSel) Cyan300 else Slate300,
                                 modifier = Modifier.padding(vertical = 8.dp),
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -279,7 +275,7 @@ fun AppearanceBrandingScreen(
             Text(
                 text = "Continue to Review Tutorial",
                 fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
+                fontSize = 15.sp
             )
             Spacer(modifier = Modifier.width(8.dp))
             Icon(imageVector = Icons.Default.ArrowForward, contentDescription = null)

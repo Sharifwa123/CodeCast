@@ -62,15 +62,14 @@ fun StepSelectionScreen(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = "STEP SELECTION & VERIFICATION",
-                    fontSize = 11.sp,
+                    text = "Step selection & verification",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Cyan400,
-                    letterSpacing = 0.8.sp
                 )
                 Text(
                     text = "Discovered steps for: \"${workflowName ?: "Workflow"}\". Each step is tied to real component code and verified application screens.",
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     color = Slate300
                 )
             }
@@ -96,7 +95,7 @@ fun StepSelectionScreen(
                 )
                 Text(
                     text = "Notice: Manually removing verified steps or editing route sequence may alter accuracy against runtime software states.",
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     color = Amber500
                 )
             }
@@ -110,10 +109,9 @@ fun StepSelectionScreen(
         ) {
             Text(
                 text = "STEPS IN WORKFLOW (${steps.filter { it.isChecked }.size} ACTIVE)",
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = Slate400,
-                letterSpacing = 0.6.sp
             )
 
             OutlinedButton(
@@ -127,7 +125,7 @@ fun StepSelectionScreen(
             ) {
                 Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Add Step", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Text("Add Step", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             }
         }
 
@@ -174,7 +172,7 @@ fun StepSelectionScreen(
 
                                 Text(
                                     text = "${step.stepOrder}.",
-                                    fontSize = 13.sp,
+                                    fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (step.isChecked) Indigo400 else Slate500
                                 )
@@ -182,7 +180,7 @@ fun StepSelectionScreen(
                                 Column {
                                     Text(
                                         text = step.title,
-                                        fontSize = 13.sp,
+                                        fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = if (step.isChecked) Slate100 else Slate500
                                     )
@@ -197,7 +195,7 @@ fun StepSelectionScreen(
                                         ) {
                                             Text(
                                                 text = step.screenName,
-                                                fontSize = 9.sp,
+                                                fontSize = 11.sp,
                                                 color = Slate300,
                                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                                             )
@@ -276,7 +274,7 @@ fun StepSelectionScreen(
                                         editTitle = it
                                         onUpdateStep(step.id, it, editInstruction)
                                     },
-                                    label = { Text("Step Title", fontSize = 11.sp) },
+                                    label = { Text("Step Title", fontSize = 12.sp) },
                                     modifier = Modifier.fillMaxWidth(),
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedBorderColor = Indigo500,
@@ -290,7 +288,7 @@ fun StepSelectionScreen(
                                         editInstruction = it
                                         onUpdateStep(step.id, editTitle, it)
                                     },
-                                    label = { Text("Custom Narration Instruction", fontSize = 11.sp) },
+                                    label = { Text("Custom Narration Instruction", fontSize = 12.sp) },
                                     placeholder = { Text("e.g. Advise user to verify password length") },
                                     modifier = Modifier.fillMaxWidth(),
                                     colors = OutlinedTextFieldDefaults.colors(
@@ -324,7 +322,7 @@ fun StepSelectionScreen(
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = "Why is this step here?",
-                                    fontSize = 11.sp,
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
@@ -347,7 +345,7 @@ fun StepSelectionScreen(
             Text(
                 text = "Continue to Audience Selection",
                 fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
+                fontSize = 15.sp
             )
             Spacer(modifier = Modifier.width(8.dp))
             Icon(imageVector = Icons.Default.ArrowForward, contentDescription = null)

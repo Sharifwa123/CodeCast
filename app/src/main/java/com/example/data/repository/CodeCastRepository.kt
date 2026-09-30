@@ -51,6 +51,8 @@ class CodeCastRepository(
 
     suspend fun updateScene(scene: GeneratedSceneEntity) = tutorialDao.updateScene(scene)
 
+    suspend fun deleteScene(sceneId: Int) = tutorialDao.deleteSceneById(sceneId)
+
     fun getVersions(projectId: Int): Flow<List<ProjectVersionEntity>> =
         projectDao.getVersionsForProject(projectId)
 

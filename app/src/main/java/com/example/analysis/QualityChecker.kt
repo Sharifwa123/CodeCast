@@ -31,6 +31,7 @@ object QualityChecker {
         val byPath = files.associateBy { it.path }
         var evidenceOk = true
         scenes.forEach { sc ->
+            if (active.firstOrNull { it.title == sc.title }?.evidenceSource == "Live page only") return@forEach
             val f = byPath[sc.codeFilePath]
             val first = sc.codeSnippet.lines().firstOrNull { it.isNotBlank() }?.trim()
             if (f == null || sc.codeSnippet.isBlank() || (first != null && !f.content.contains(first))) {
@@ -56,19 +57,19 @@ object QualityChecker {
         }
         if (!localization.narrationTranslated) {
             textOk = false
-            issues.add(QualityCheckIssue(0, "Narration", "Not Translated", "Narration could not be translated to ${tutorial.narrationLang}; it is in English.", "Configure GEMINI_API_KEY or choose English."))
+            issues.add(QualityCheckIssue(0, "Narration", "Not Translated", "Narration could not be translated to ${tutorial.narrationLang}; it is in English.", "Add a Gemini API key on the Voice & Language step, or choose English."))
         }
         if (tutorial.hasSubtitles && !localization.subtitlesTranslated) {
             textOk = false
-            issues.add(QualityCheckIssue(0, "Subtitles", "Not Translated", "Subtitles could not be translated to ${tutorial.subtitleLang}; they use the narration language.", "Configure GEMINI_API_KEY or match the narration language."))
+            issues.add(QualityCheckIssue(0, "Subtitles", "Not Translated", "Subtitles could not be translated to ${tutorial.subtitleLang}; they use the narration language.", "Add a Gemini API key on the Voice & Language step, or match the narration language."))
         }
         check(textOk)
 
         // 4. Timing: total inside requested range, each scene long enough to speak its narration
         val range = ScenePlanner.rangeFor(tutorial.duration)
         val sum = scenes.sumOf { it.durationSeconds }
-        var timingOk = scenes.isNotEmpty() && sum >= range.minSec && (range.maxSec == null || sum <= range.maxSec)
-        if (!timingOk) issues.add(QualityCheckIssue(0, "Tutorial", "Duration", "Total ${sum}s is outside ${tutorial.duration}.", "Add or remove steps, or pick another duration."))
+        var timingOk = scenes.isNotEmpty() && (range.maxSec == null || sum <= range.maxSec)
+        if (!timingOk) issues.add(QualityCheckIssue(0, "Tutorial", "Duration", "Total ${sum}s is longer than ${tutorial.duration}.", "Remove steps or pick a longer duration."))
         scenes.forEach { sc ->
             val need = ScenePlanner.spokenSeconds(sc.narrationScript, tutorial.speakingSpeed)
             if (sc.durationSeconds < need) {

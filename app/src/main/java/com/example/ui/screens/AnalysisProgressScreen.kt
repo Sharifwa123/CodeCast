@@ -59,11 +59,10 @@ fun AnalysisProgressScreen(
                 ) {
                     Column {
                         Text(
-                            text = "ANALYZING YOUR APPLICATION",
-                            fontSize = 11.sp,
+                            text = "Analyzing your application",
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = Cyan400,
-                            letterSpacing = 0.8.sp
                         )
                         Text(
                             text = project?.name ?: "Application Codebase",
@@ -97,7 +96,7 @@ fun AnalysisProgressScreen(
                                 )
                                 Text(
                                     text = "Ready",
-                                    fontSize = 11.sp,
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Emerald400
                                 )
@@ -108,7 +107,7 @@ fun AnalysisProgressScreen(
 
                 Text(
                     text = "Building deep AST index of UI routes, layout hierarchy, interactive buttons, form bindings, and runtime state.",
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     color = Slate300
                 )
             }
@@ -126,11 +125,10 @@ fun AnalysisProgressScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "ANALYSIS CHECKLIST",
-                    fontSize = 11.sp,
+                    text = "Analysis checklist",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate400,
-                    letterSpacing = 0.8.sp
                 )
 
                 checklist.forEach { (item, isDone) ->
@@ -171,7 +169,7 @@ fun AnalysisProgressScreen(
 
                             Text(
                                 text = item,
-                                fontSize = 13.sp,
+                                fontSize = 14.sp,
                                 fontWeight = if (isDone) FontWeight.SemiBold else FontWeight.Normal,
                                 color = if (isDone) Slate100 else Slate400
                             )
@@ -179,7 +177,7 @@ fun AnalysisProgressScreen(
 
                         Text(
                             text = if (isDone) "✓" else "...",
-                            fontSize = 13.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (isDone) Emerald400 else Slate500
                         )
@@ -200,11 +198,10 @@ fun AnalysisProgressScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "DISCOVERED APPLICATION KNOWLEDGE",
-                    fontSize = 11.sp,
+                    text = "Discovered application knowledge",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate400,
-                    letterSpacing = 0.8.sp
                 )
 
                 Row(
@@ -238,16 +235,16 @@ fun AnalysisProgressScreen(
                         modifier = Modifier.padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text(text = "Framework & Tech Stack:", fontSize = 10.sp, color = Slate400)
+                        Text(text = "Framework & Tech Stack:", fontSize = 11.sp, color = Slate400)
                         Text(
                             text = analysis.framework,
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Slate100
                         )
                         Text(
                             text = "Stack: " + analysis.techStack.joinToString(", ").ifEmpty { "not detected" },
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             color = Cyan400
                         )
                     }
@@ -268,7 +265,7 @@ fun AnalysisProgressScreen(
             Text(
                 text = "Continue to Choose Tutorial",
                 fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
+                fontSize = 15.sp
             )
             Spacer(modifier = Modifier.width(8.dp))
             Icon(imageVector = Icons.Default.ArrowForward, contentDescription = null)
@@ -288,9 +285,9 @@ private fun StatBox(title: String, value: String, modifier: Modifier = Modifier)
             modifier = Modifier.padding(10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(text = title, fontSize = 10.sp, color = Slate400)
+            Text(text = title, fontSize = 11.sp, color = Slate400)
             Spacer(modifier = Modifier.height(2.dp))
-            Text(text = value, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Slate100)
+            Text(text = value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Slate100)
         }
     }
 }

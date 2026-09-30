@@ -55,15 +55,14 @@ fun FeatureWorkflowScreen(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = "DISCOVERED FEATURES & WORKFLOWS",
-                    fontSize = 11.sp,
+                    text = "Discovered features & workflows",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Cyan400,
-                    letterSpacing = 0.8.sp
                 )
                 Text(
                     text = "All options below were verified from your uploaded codebase. Select a feature to choose which verified user journey to generate.",
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     color = Slate300
                 )
             }
@@ -71,11 +70,10 @@ fun FeatureWorkflowScreen(
 
         // Features Selector (Horizontal chips or vertical list)
         Text(
-            text = "AVAILABLE FEATURES IN YOUR PROJECT",
-            fontSize = 11.sp,
+            text = "Available features in your project",
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             color = Slate400,
-            letterSpacing = 0.6.sp
         )
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -119,13 +117,13 @@ fun FeatureWorkflowScreen(
                             Column {
                                 Text(
                                     text = feature.name,
-                                    fontSize = 13.sp,
+                                    fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (isSelected) Slate50 else Slate200
                                 )
                                 Text(
                                     text = "${feature.workflows.size} verified workflows",
-                                    fontSize = 11.sp,
+                                    fontSize = 12.sp,
                                     color = Slate400
                                 )
                             }
@@ -145,10 +143,9 @@ fun FeatureWorkflowScreen(
         activeFeature?.let { feat ->
             Text(
                 text = "${feat.name.uppercase()} WORKFLOWS",
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = Slate400,
-                letterSpacing = 0.6.sp
             )
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -175,7 +172,7 @@ fun FeatureWorkflowScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Text(
                                         text = wf.name,
-                                        fontSize = 13.sp,
+                                        fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = if (isWfSelected) Slate50 else Slate100
                                     )
@@ -185,7 +182,7 @@ fun FeatureWorkflowScreen(
                                     ) {
                                         Text(
                                             text = "${wf.defaultSteps.size} steps",
-                                            fontSize = 9.sp,
+                                            fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = Emerald400,
                                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
@@ -194,7 +191,7 @@ fun FeatureWorkflowScreen(
                                 }
                                 Text(
                                     text = wf.description,
-                                    fontSize = 11.sp,
+                                    fontSize = 12.sp,
                                     color = Slate400,
                                     modifier = Modifier.padding(top = 2.dp)
                                 )
@@ -224,7 +221,7 @@ fun FeatureWorkflowScreen(
             Text(
                 text = "Review Discovered Steps (${selectedWorkflow?.defaultSteps?.size ?: 0} Steps)",
                 fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
+                fontSize = 15.sp
             )
             Spacer(modifier = Modifier.width(8.dp))
             Icon(imageVector = Icons.Default.ArrowForward, contentDescription = null)

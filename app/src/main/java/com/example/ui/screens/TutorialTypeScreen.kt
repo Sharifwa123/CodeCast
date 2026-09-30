@@ -74,15 +74,14 @@ fun TutorialTypeScreen(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = "WHAT WOULD YOU LIKE TO TEACH?",
-                    fontSize = 11.sp,
+                    text = "What would you like to teach?",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Cyan400,
-                    letterSpacing = 0.8.sp
                 )
                 Text(
                     text = "Choose a structured tutorial format. CodeCast automatically inspects the discovered screens and controls matching your selection.",
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     color = Slate300
                 )
             }
@@ -132,7 +131,7 @@ fun TutorialTypeScreen(
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(
                                     text = item.title,
-                                    fontSize = 14.sp,
+                                    fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (isSelected) Slate50 else Slate100
                                 )
@@ -143,13 +142,13 @@ fun TutorialTypeScreen(
                                             .background(Emerald500.copy(alpha = 0.2f))
                                             .padding(horizontal = 4.dp, vertical = 1.dp)
                                     ) {
-                                        Text("POPULAR", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Emerald400)
+                                        Text("Popular", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Emerald400)
                                     }
                                 }
                             }
                             Text(
                                 text = item.description,
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 color = Slate400,
                                 modifier = Modifier.padding(top = 2.dp)
                             )
@@ -215,7 +214,7 @@ fun TutorialTypeScreen(
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(
                                     text = "Custom Tutorial (Flexible Fallback)",
-                                    fontSize = 14.sp,
+                                    fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (isCustomSelected) Slate50 else Slate200
                                 )
@@ -225,12 +224,12 @@ fun TutorialTypeScreen(
                                         .background(Slate700)
                                         .padding(horizontal = 4.dp, vertical = 1.dp)
                                 ) {
-                                    Text("FALLBACK", fontSize = 8.sp, fontWeight = FontWeight.SemiBold, color = Slate300)
+                                    Text("Fallback", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Slate300)
                                 }
                             }
                             Text(
                                 text = "Use when your workflow is not listed above.",
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 color = Slate400
                             )
                         }
@@ -251,7 +250,7 @@ fun TutorialTypeScreen(
 
                     Text(
                         text = "What would you like to teach?",
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Slate200
                     )
@@ -271,7 +270,7 @@ fun TutorialTypeScreen(
 
                     Text(
                         text = "Example: \"Show customers how to download their invoice.\" The system matches your intent against indexed routes and forms to build verified steps.",
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         color = Slate400
                     )
 
@@ -291,7 +290,7 @@ fun TutorialTypeScreen(
                             text = "Discover Workflow From Application Knowledge",
                             color = Slate950,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
+                            fontSize = 13.sp
                         )
                     }
                 }
@@ -311,7 +310,7 @@ fun TutorialTypeScreen(
                 Text(
                     text = "Continue to Workflow Selection",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+                    fontSize = 15.sp
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Icon(imageVector = Icons.Default.ArrowForward, contentDescription = null)

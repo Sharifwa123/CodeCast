@@ -75,4 +75,21 @@ class AnalyzerTest {
         assertTrue(RepoUrl.archiveUrls("https://gitlab.com/o/r").first().contains("/-/archive/HEAD/"))
         assertTrue(RepoUrl.archiveUrls("https://example.com/o/r").isEmpty())
     }
+
+    @Test fun labelsAndButtonsAreReadFromRealJsxPatterns() {
+        val tsx = """
+export default function Register() {
+  return (
+    <form onSubmit={submit} className="auth-form">
+      <label><span className="field-label">Business email</span><input type="email" value={email} onChange={e => setEmail(e.target.value)} className="field" required /></label>
+      <label><span className="field-label">Password</span><PasswordField value={password} onChange={setPassword} /></label>
+      <button className="btn" disabled={loading}>{loading ? "Creating…" : "Create account"}</button>
+    </form>
+  );
+}
+""".trimStart()
+        val a = CodebaseAnalyzer.analyze(Fixtures.read("", "package.json" to """{"dependencies":{"react":"18"}}""", "frontend/pages/register.tsx" to tsx, "frontend/pages/login.tsx" to tsx.replace("Register", "Login")).files)
+        val wf = a.workflows.first { it.id.startsWith("signup:") }
+        assertEquals(listOf("Open Register", "Enter business email", "Enter password", "Click Create account"), wf.defaultSteps.map { it.title })
+    }
 }

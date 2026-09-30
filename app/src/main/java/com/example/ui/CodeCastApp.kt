@@ -115,7 +115,7 @@ fun CodeCastApp(
             if (state.currentStep == WizardStep.VIDEO_PREVIEW_EDITOR && !showKnowledgeScreen) {
                 Surface(
                     color = Slate900,
-                    tonalElevation = 6.dp,
+                    tonalElevation = 0.dp,
                     modifier = Modifier
                         .fillMaxWidth()
                         .windowInsetsPadding(WindowInsets.navigationBars)
@@ -133,12 +133,12 @@ fun CodeCastApp(
                         ) {
                             Icon(imageVector = Icons.Default.Hub, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Knowledge Hub", fontSize = 12.sp)
+                            Text("Knowledge", fontSize = 13.sp, maxLines = 1, softWrap = false)
                         }
 
                         TextButton(
                             onClick = { viewModel.toggleQualityReportDialog(true) },
-                            colors = ButtonDefaults.textButtonColors(contentColor = Emerald400),
+                            colors = ButtonDefaults.textButtonColors(contentColor = if (state.generationProgress.qualityReport?.isClean == false) Amber500 else Emerald400),
                             modifier = Modifier.testTag("quality_check_badge_btn")
                         ) {
                             Icon(imageVector = Icons.Default.Verified, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -146,11 +146,11 @@ fun CodeCastApp(
                             val report = state.generationProgress.qualityReport
                             Text(
                                 text = when {
-                                    report == null -> "Quality Check"
-                                    report.isClean -> "Quality Check (Passed)"
-                                    else -> "Quality Check (${report.issues.size} issue${if (report.issues.size == 1) "" else "s"})"
+                                    report == null -> "Quality"
+                                    report.isClean -> "Quality: passed"
+                                    else -> "Quality: ${report.issues.size} issue${if (report.issues.size == 1) "" else "s"}"
                                 },
-                                fontSize = 12.sp, fontWeight = FontWeight.Bold
+                                fontSize = 13.sp, fontWeight = FontWeight.Bold
                             )
                         }
 
@@ -162,7 +162,7 @@ fun CodeCastApp(
                         ) {
                             Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("New Tutorial", fontSize = 11.sp)
+                            Text("New", fontSize = 12.sp, maxLines = 1, softWrap = false)
                         }
                     }
                 }
@@ -297,7 +297,25 @@ fun CodeCastApp(
                             onPickAudioFile = { audioLauncher.launch(arrayOf("audio/*", "*/*")) },
                             onTuneVoicePitch = { viewModel.setClonedVoicePitch(it) },
                             onTestVoicePreview = { viewModel.testPlayVoiceSample() },
-                            onContinueClick = { viewModel.goToStep(WizardStep.CHOOSE_VOICE) }
+                            onContinueClick = { viewModel.goToStep(WizardStep.CHOOSE_VOICE) },
+                            extraContent = {
+                                CloneSetupCard(
+                                    endpoint = state.cloneEndpoint,
+                                    token = state.cloneToken,
+                                    status = state.cloneStatus,
+                                    checking = state.cloneChecking,
+                                    sampleInfo = state.voiceSampleInfo,
+                                    isRecording = state.isRecordingVoice,
+                                    recordingSec = state.recordingDurationSec,
+                                    hasPhoto = state.presenterFaceUri != null,
+                                    onEndpointChange = { viewModel.setCloneEndpoint(it) },
+                                    onTokenChange = { viewModel.setCloneToken(it) },
+                                    onTest = { viewModel.testCloneConnection() },
+                                    onRecord = { micPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO) },
+                                    onStop = { viewModel.stopVoiceRecording() },
+                                    onPickAudio = { audioLauncher.launch(arrayOf("audio/*")) }
+                                )
+                            }
                         )
                     }
 
@@ -325,7 +343,9 @@ fun CodeCastApp(
                             onSubtitleConfigChange = { en, sty, pos ->
                                 viewModel.setSubtitleConfig(en, sty, pos)
                             },
-                            onContinueClick = { viewModel.goToStep(WizardStep.CUSTOMIZE_APPEARANCE) }
+                            onContinueClick = { viewModel.goToStep(WizardStep.CUSTOMIZE_APPEARANCE) },
+                            geminiKey = state.geminiApiKey,
+                            onGeminiKeyChange = { viewModel.setGeminiApiKey(it) }
                         )
                     }
 
@@ -373,14 +393,33 @@ fun CodeCastApp(
                             hasClonedVoice = state.hasClonedVoice,
                             clonedVoiceName = state.clonedVoiceName,
                             onGenerateClick = { viewModel.startVideoGeneration() },
-                            onBackToStepsClick = { viewModel.goToStep(WizardStep.SELECT_STEPS) }
+                            onBackToStepsClick = { viewModel.goToStep(WizardStep.SELECT_STEPS) },
+                            extraContent = {
+                                RecordingTargetCard(
+                                    recordMode = state.recordMode,
+                                    liveUrl = state.liveUrl,
+                                    candidates = state.urlCandidates,
+                                    urlStatus = state.urlStatus,
+                                    urlChecking = state.urlChecking,
+                                    deviceProfile = state.deviceProfile,
+                                    allowRealClicks = state.allowRealClicks,
+                                    onModeChange = { viewModel.setRecordMode(it) },
+                                    onUrlChange = { viewModel.setLiveUrl(it) },
+                                    onCheckUrl = { viewModel.checkLiveUrl() },
+                                    onDeviceChange = { viewModel.setDeviceProfile(it) },
+                                    onRealClicksChange = { viewModel.setAllowRealClicks(it) }
+                                )
+                            }
                         )
                     }
 
                     WizardStep.GENERATE_VIDEO -> {
                         GenerationPipelineScreen(
                             progressState = state.generationProgress,
-                            onViewResultClick = { viewModel.goToStep(WizardStep.VIDEO_PREVIEW_EDITOR) }
+                            onViewResultClick = { viewModel.goToStep(WizardStep.VIDEO_PREVIEW_EDITOR) },
+                            showRecorder = state.recorderVisible,
+                            recorderAspect = com.example.record.DeviceProfile.fromId(state.deviceProfile).contentAspect,
+                            onWebViewReady = { viewModel.attachWebView(it) }
                         )
                     }
 

@@ -7,14 +7,18 @@ import android.content.Context
 import android.net.Uri
 import com.example.BuildConfig
 import com.example.ai.GeminiTranslator
+import com.example.clone.RemoteClone
 import com.example.analysis.*
 import com.example.data.model.*
 import com.example.data.repository.CodeCastRepository
 import com.example.media.*
+import com.example.record.*
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -62,6 +66,20 @@ data class CodeCastUiState(
     val analysis: ProjectAnalysis = ProjectAnalysis.EMPTY,
     val isFetching: Boolean = false,
     val ingestError: String? = null,
+    val geminiApiKey: String = "",
+    val cloneEndpoint: String = "",
+    val cloneToken: String = "",
+    val cloneStatus: String? = null,
+    val cloneChecking: Boolean = false,
+    val voiceSampleInfo: String? = null,
+    val recordMode: String = "SCREEN", // "SCREEN" = record the live app, "SLIDES" = code slides only
+    val liveUrl: String = "",
+    val urlCandidates: List<UrlCandidate> = emptyList(),
+    val urlStatus: String? = null,
+    val urlChecking: Boolean = false,
+    val deviceProfile: String = "ANDROID_PHONE",
+    val allowRealClicks: Boolean = false,
+    val recorderVisible: Boolean = false,
     val exportProgress: Float? = null,
     val exportedVideoPath: String? = null,
     val isAnalyzing: Boolean = false,
@@ -158,8 +176,24 @@ class CodeCastViewModel(
     private var playbackJob: Job? = null
     private var generationJob: Job? = null
 
+    private val prefs = appContext.getSharedPreferences("codecast_prefs", Context.MODE_PRIVATE)
+
     init {
+        _uiState.update {
+            it.copy(
+                geminiApiKey = prefs.getString("gemini_key", "") ?: "",
+                cloneEndpoint = prefs.getString("clone_endpoint", "") ?: "",
+                cloneToken = prefs.getString("clone_token", "") ?: "",
+                hasClonedVoice = voiceReference() != null,
+                voiceSampleInfo = voiceReference()?.let { f -> "${f.name} (${f.length() / 1024} KB)" }
+            )
+        }
         loadInitialData()
+    }
+
+    fun setGeminiApiKey(key: String) {
+        prefs.edit().putString("gemini_key", key.trim()).apply()
+        _uiState.update { it.copy(geminiApiKey = key.trim()) }
     }
 
     private fun loadInitialData() {
@@ -216,10 +250,79 @@ class CodeCastViewModel(
                 projectNameInput = if (it.projectNameInput.isBlank()) cleanName else it.projectNameInput,
                 selectedWorkflow = null,
                 stepsList = emptyList(),
+                urlCandidates = LiveUrlFinder.fromSource(result.files, it.repoUrlInput),
+                liveUrl = if (it.liveUrl.isBlank()) LiveUrlFinder.fromSource(result.files, it.repoUrlInput).firstOrNull()?.url ?: "" else it.liveUrl,
                 notificationMessage = "Indexed ${result.files.size} source files (${analysis.framework})"
             )
         }
+        // A maintainer-set GitHub homepage is the best hint for where the app is deployed
+        val url = _uiState.value.repoUrlInput
+        if (url.isNotBlank()) viewModelScope.launch {
+            val hp = withContext(Dispatchers.IO) { RepoMeta.githubHomepage(url) }
+            LiveUrlFinder.normalize(hp)?.let { n ->
+                _uiState.update { st ->
+                    st.copy(urlCandidates = listOf(UrlCandidate(n, "GitHub repository homepage")) + st.urlCandidates.filter { c -> c.url != n },
+                        liveUrl = if (st.liveUrl.isBlank() || st.liveUrl == st.urlCandidates.firstOrNull()?.url) n else st.liveUrl)
+                }
+            }
+        }
     }
+
+    fun setRecordMode(mode: String) { _uiState.update { it.copy(recordMode = mode) } }
+    fun setLiveUrl(url: String) { _uiState.update { it.copy(liveUrl = url.trim(), urlStatus = null) } }
+    fun setDeviceProfile(id: String) { _uiState.update { it.copy(deviceProfile = id) } }
+    fun setAllowRealClicks(v: Boolean) { _uiState.update { it.copy(allowRealClicks = v) } }
+
+    fun checkLiveUrl() {
+        val u = _uiState.value.liveUrl
+        if (!LiveUrlFinder.isValid(u)) { _uiState.update { it.copy(urlStatus = "Enter a full URL such as https://yourapp.com") }; return }
+        viewModelScope.launch {
+            _uiState.update { it.copy(urlChecking = true, urlStatus = null) }
+            val err = withContext(Dispatchers.IO) { RepoMeta.reachable(u) }
+            _uiState.update { it.copy(urlChecking = false, urlStatus = err ?: "Reachable") }
+        }
+    }
+
+    private var webViewDeferred = CompletableDeferred<android.webkit.WebView>()
+    private var lastLoc = LocalizationResult(true, true)
+    private var recorder: WebRecorder? = null
+    private var liveSpecs = HashMap<Int, ElementSpec>()
+    private var lastReport: ReconcileReport? = null
+    private var cloneNote: String? = null
+    private var presenterClips = HashMap<Int, File>()
+
+    private suspend fun acquireRecorder(): WebRecorder {
+        recorder?.let { return it }
+        val profile = DeviceProfile.fromId(_uiState.value.deviceProfile)
+        webViewDeferred = CompletableDeferred()
+        _uiState.update { it.copy(recorderVisible = true) }
+        val webView = withTimeoutOrNull(10_000) { webViewDeferred.await() } ?: error("The recording view could not start")
+        return WebRecorder(webView, profile).also { it.configure(); recorder = it }
+    }
+
+    private fun releaseRecorder() {
+        recorder = null
+        _uiState.update { it.copy(recorderVisible = false) }
+    }
+
+    /** Opens every page the steps need in the real browser view and checks the steps against what is really there. */
+    private suspend fun verifyLive(steps: List<TutorialStepEntity>, rec: WebRecorder, done: MutableList<String>): ReconcileResult {
+        val base = _uiState.value.liveUrl.trim().removeSuffix("/")
+        val routes = LinkedHashMap<String, String>()
+        routes["/"] = base
+        steps.filter { it.isChecked && it.actionType == "Navigate" }.forEach { s ->
+            StepPlanner.routeOf(s)?.takeIf { !it.contains(":") }?.let { r -> routes[r] = base + (if (r == "/") "" else r) }
+        }
+        val scans = HashMap<String, LiveScan>()
+        routes.entries.forEachIndexed { i, (route, url) ->
+            setStage("Reading the live page $route", 0.03f + 0.15f * i / routes.size, done)
+            scans[route] = if (rec.load(url)) rec.scan(route, url) else LiveScan(route, url, "", emptyList(), rec.lastError ?: "could not open")
+        }
+        return Reconciler.reconcile(steps, scans)
+    }
+
+
+    fun attachWebView(v: android.webkit.WebView) { if (!webViewDeferred.isCompleted) webViewDeferred.complete(v) }
 
     fun openCodebaseExplorer(file: CodebaseFile? = null) {
         _uiState.update { it.copy(showCodebaseExplorer = true, selectedCodeFile = file ?: it.extractedCodeFiles.firstOrNull()) }
@@ -290,31 +393,70 @@ class CodeCastViewModel(
     }
 
     private var voiceRecordJob: Job? = null
+    @Volatile private var stopVoice = false
 
+    private fun voiceReference(): File? = appContext.filesDir.listFiles { f -> f.name.startsWith("voice_reference.") }?.maxByOrNull { it.lastModified() }
+
+    fun setCloneEndpoint(url: String) { prefs.edit().putString("clone_endpoint", url.trim()).apply(); _uiState.update { it.copy(cloneEndpoint = url.trim(), cloneStatus = null) } }
+    fun setCloneToken(t: String) { prefs.edit().putString("clone_token", t.trim()).apply(); _uiState.update { it.copy(cloneToken = t.trim()) } }
+
+    fun testCloneConnection() {
+        val st = _uiState.value
+        if (st.cloneEndpoint.isBlank()) { _uiState.update { it.copy(cloneStatus = "Paste your clone server URL first") }; return }
+        viewModelScope.launch {
+            _uiState.update { it.copy(cloneChecking = true, cloneStatus = null) }
+            val err = withContext(Dispatchers.IO) { RemoteClone.health(st.cloneEndpoint, st.cloneToken) }
+            _uiState.update { it.copy(cloneChecking = false, cloneStatus = err ?: "Connected") }
+        }
+    }
+
+    /** Records the microphone for up to 15 s (real audio, saved as the voice reference). */
     fun startVoiceRecording() {
         voiceRecordJob?.cancel()
+        stopVoice = false
         _uiState.update { it.copy(isRecordingVoice = true, recordingDurationSec = 0) }
-        voiceRecordJob = viewModelScope.launch {
-            while (_uiState.value.isRecordingVoice && _uiState.value.recordingDurationSec < 30) {
+        val timer = viewModelScope.launch {
+            while (_uiState.value.isRecordingVoice && _uiState.value.recordingDurationSec < 15) {
                 delay(1000)
                 _uiState.update { it.copy(recordingDurationSec = it.recordingDurationSec + 1) }
             }
         }
-    }
-
-    fun stopVoiceRecording() {
-        voiceRecordJob?.cancel()
-        _uiState.update {
-            it.copy(
-                isRecordingVoice = false,
-                notificationMessage = "Voice cloning isn't available on-device. Narration uses the system text-to-speech voice you selected."
-            )
+        voiceRecordJob = viewModelScope.launch {
+            try {
+                val wav = VoiceSampleRecorder.record(15, shouldStop = { stopVoice })
+                val secs = WavData.parse(wav)?.seconds ?: 0.0
+                timer.cancel()
+                if (secs < 3.0) {
+                    _uiState.update { it.copy(isRecordingVoice = false, notificationMessage = "That was too short. Record at least 5 seconds of clear speech.") }
+                } else {
+                    appContext.filesDir.listFiles { f -> f.name.startsWith("voice_reference.") }?.forEach { it.delete() }
+                    val f = File(appContext.filesDir, "voice_reference.wav").also { it.writeBytes(wav) }
+                    _uiState.update { it.copy(isRecordingVoice = false, hasClonedVoice = true, voiceSampleInfo = "recording ${secs.toInt()} s", notificationMessage = "Voice sample saved (${secs.toInt()} s).") }
+                }
+            } catch (e: Exception) {
+                timer.cancel()
+                _uiState.update { it.copy(isRecordingVoice = false, notificationMessage = "Recording failed: ${e.message}") }
+            }
         }
     }
 
+    fun stopVoiceRecording() { stopVoice = true }
+
+    /** Uses an existing audio file (wav, mp3, m4a...) as the voice reference. */
     fun setVoiceAudioSampleUri(uriString: String) {
-        _uiState.update {
-            it.copy(notificationMessage = "Voice cloning isn't available on-device. Narration uses the system text-to-speech voice you selected.")
+        viewModelScope.launch {
+            try {
+                val uri = Uri.parse(uriString)
+                val name = appContext.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null } ?: "sample.wav"
+                val ext = name.substringAfterLast('.', "wav").lowercase().take(5)
+                val bytes = withContext(Dispatchers.IO) { appContext.contentResolver.openInputStream(uri)?.use { it.readBytes() } } ?: error("Could not read the file")
+                require(bytes.size in 20_000..30_000_000) { "The audio file must be between 20 KB and 30 MB" }
+                appContext.filesDir.listFiles { f -> f.name.startsWith("voice_reference.") }?.forEach { it.delete() }
+                File(appContext.filesDir, "voice_reference.$ext").writeBytes(bytes)
+                _uiState.update { it.copy(hasClonedVoice = true, voiceSampleInfo = "$name (${bytes.size / 1024} KB)", notificationMessage = "Voice sample saved.") }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(notificationMessage = "Could not use that file: ${e.message}") }
+            }
         }
     }
 
@@ -715,6 +857,25 @@ class CodeCastViewModel(
         scenes: List<GeneratedSceneEntity>, tutorial: TutorialPlanEntity, onProgress: (Float) -> Unit
     ): Triple<List<GeneratedSceneEntity>, Map<Int, WavData?>, Boolean> {
         val st = _uiState.value
+        cloneNote = null
+        val ref = voiceReference()
+        if (st.cloneEndpoint.isNotBlank() && ref != null) {
+            val refBytes = ref.readBytes()
+            val audio = LinkedHashMap<Int, WavData?>()
+            var failed: String? = null
+            val out = scenes.mapIndexed { i, sc ->
+                val wav = if (failed != null) null else try {
+                    withContext(Dispatchers.IO) { WavData.parse(RemoteClone.synthesize(st.cloneEndpoint, st.cloneToken, sc.narrationScript, tutorial.narrationLang, refBytes, ref.name)) }
+                        ?: throw RemoteClone.CloneException("The server did not return a WAV file")
+                } catch (e: Exception) { failed = e.message ?: "unknown error"; null }
+                audio[sc.sceneOrder] = wav
+                onProgress((i + 1f) / scenes.size)
+                val needed = wav?.let { Math.ceil(it.seconds + 0.7).toInt() } ?: 0
+                if (needed > sc.durationSeconds) sc.copy(durationSeconds = needed).also { repository.updateScene(it) } else sc
+            }
+            if (failed == null) return Triple(out, audio, true)
+            cloneNote = "Your voice clone server failed ($failed), so the phone's own voice was used."
+        }
         val narrator = Narrator(appContext)
         try {
             if (!narrator.prepare(tutorial.narrationLang, tutorial.speakingSpeed, pitchFor(st))) {
@@ -753,6 +914,10 @@ class CodeCastViewModel(
             return
         }
         val currentTitle = _uiState.value.selectedWorkflow?.name ?: "Application Tutorial"
+        if (_uiState.value.recordMode == "SCREEN" && !LiveUrlFinder.isValid(_uiState.value.liveUrl)) {
+            _uiState.update { it.copy(notificationMessage = "Enter your app's live URL to record the real screen, or switch to code slides.") }
+            return
+        }
 
         generationJob?.cancel()
         generationJob = viewModelScope.launch {
@@ -792,9 +957,9 @@ class CodeCastViewModel(
             )
 
             val tutorialId = repository.saveTutorial(tutorialEntity).toInt()
-            val stepsWithTutId = s0.stepsList.map { it.copy(tutorialId = tutorialId) }
-            repository.saveSteps(stepsWithTutId)
+            var stepsWithTutId = s0.stepsList.map { it.copy(tutorialId = tutorialId) }
             val savedTutorial = repository.getTutorial(tutorialId) ?: return@launch
+            liveSpecs = HashMap(); lastReport = null
 
             _uiState.update {
                 it.copy(
@@ -806,50 +971,39 @@ class CodeCastViewModel(
             }
             val done = mutableListOf<String>()
             try {
+                // 0. Read the live site and check the code-derived steps against it
+                if (s0.recordMode == "SCREEN") {
+                    setStage("Checking your live site against your code", 0.03f, done)
+                    val rr = verifyLive(stepsWithTutId, acquireRecorder(), done)
+                    check(rr.steps.any { it.isChecked && it.actionType != "Navigate" }) {
+                        "Nothing in your code's workflow matches what the live page shows. " +
+                            rr.report.codeOnly.joinToString("; ") { "${it.first}: ${it.second}" } + rr.report.pageNotes.joinToString("; ", prefix = " ")
+                    }
+                    stepsWithTutId = rr.steps
+                    liveSpecs = HashMap(rr.specs); lastReport = rr.report
+                    _uiState.update { it.copy(stepsList = rr.steps) }
+                    done.add(rr.report.summary())
+                }
+                repository.saveSteps(stepsWithTutId.map { it.copy(id = 0) })
+
                 // 1. Plan + localize scenes
                 val terms = savedTutorial.customTerminology.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                val translator = if (BuildConfig.GEMINI_API_KEY.isNotBlank()) GeminiTranslator(BuildConfig.GEMINI_API_KEY, terms) else null
+                val apiKey = s0.geminiApiKey.ifBlank { BuildConfig.GEMINI_API_KEY }
+                val translator = if (apiKey.isNotBlank()) GeminiTranslator(apiKey, terms) else null
                 setStage("Writing narration and subtitles", 0.10f, done)
                 val (planned, loc) = repository.generateScenes(tutorialId, stepsWithTutId, savedTutorial, translator)
                 done.add("Planned ${planned.size} scenes from verified code evidence")
 
-                // 2. Narration audio
-                setStage("Synthesizing narration audio", 0.25f, done)
-                val (scenes, audio, audioOk) = narrate(planned, savedTutorial, onProgress = { p -> setStage("Synthesizing narration audio", 0.25f + 0.25f * p, done) })
-                done.add(if (audioOk) "Narration audio synthesized" else "No speech engine for ${savedTutorial.narrationLang} (video will be silent)")
-                val finalScenes = repository.getScenesList(tutorialId)
-
-                // 3. Render MP4
-                setStage("Rendering video", 0.50f, done)
-                val file = renderVideo(finalScenes, audio, tutorialId) { p -> setStage("Rendering video", 0.50f + 0.40f * p, done) }
-                done.add("Rendered ${file.name}")
-
-                // 4. Quality check
-                setStage("Running quality check", 0.95f, done)
-                val report = repository.runQualityCheck(stepsWithTutId, finalScenes, savedTutorial, _uiState.value.extractedCodeFiles, loc, audioOk)
-                done.add("Quality check: ${report.passedChecks}/${report.totalChecks} passed")
-                repository.updateTutorial(savedTutorial.copy(status = "COMPLETED"))
-
-                _uiState.update {
-                    it.copy(
-                        scenesList = finalScenes,
-                        selectedEditorScene = finalScenes.firstOrNull(),
-                        currentSceneIndex = 0,
-                        playbackSecond = 0f,
-                        exportedVideoPath = file.absolutePath,
-                        currentStep = WizardStep.VIDEO_PREVIEW_EDITOR,
-                        generationProgress = it.generationProgress.copy(
-                            isRunning = false, isCompleted = true, progressPercent = 1f,
-                            completedStages = done.toList(), qualityReport = report
-                        )
-                    )
-                }
+                lastLoc = loc
+                produce(savedTutorial, stepsWithTutId, planned, loc, done)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 repository.updateTutorial(savedTutorial.copy(status = "DRAFT"))
+                releaseRecorder()
                 _uiState.update {
                     it.copy(
+                        recorderVisible = false,
                         generationProgress = it.generationProgress.copy(isRunning = false, phaseName = "Failed: ${e.message}"),
                         currentStep = WizardStep.REVIEW_TUTORIAL,
                         notificationMessage = "Video generation failed: ${e.message}"
@@ -859,8 +1013,208 @@ class CodeCastViewModel(
         }
     }
 
+    private class ScreenResult(val file: File, val issues: List<QualityCheckIssue>)
+
+    /** Narration audio, then either a real screen recording of the live app or code slides, then the quality check. */
+    private suspend fun produce(
+        tutorial: TutorialPlanEntity, steps: List<TutorialStepEntity>, planned: List<GeneratedSceneEntity>,
+        loc: LocalizationResult, done: MutableList<String>
+    ) {
+        setStage("Synthesizing narration audio", 0.25f, done)
+        val (_, audio, audioOk) = narrate(planned, tutorial, onProgress = { p -> setStage("Synthesizing narration audio", 0.25f + 0.25f * p, done) })
+        done.add(if (audioOk) "Narration audio synthesized" else "No speech engine for ${tutorial.narrationLang} (video will be silent)")
+        var finalScenes = repository.getScenesList(tutorial.id)
+        var extra: List<QualityCheckIssue> = cloneNote?.let { listOf(QualityCheckIssue(0, "Narration voice", "Voice clone unavailable", it, "Check the server URL and that it is running, then regenerate.")) } ?: emptyList()
+        presenterClips = HashMap()
+        val stNow = _uiState.value
+        if (stNow.recordMode == "SCREEN" && stNow.cloneEndpoint.isNotBlank() && stNow.presentationType == "FACE_AND_VOICE" && stNow.presenterFaceUri != null && audioOk) {
+            val face = try { appContext.contentResolver.openInputStream(Uri.parse(stNow.presenterFaceUri))?.use { it.readBytes() } } catch (_: Exception) { null }
+            if (face != null) {
+                var failed: String? = null
+                finalScenes.forEachIndexed { i, sc ->
+                    val wav = audio[sc.sceneOrder] ?: return@forEachIndexed
+                    if (failed != null) return@forEachIndexed
+                    setStage("Animating your presenter (${i + 1} of ${finalScenes.size})", 0.45f + 0.05f * i / finalScenes.size, done)
+                    try {
+                        val rate = wav.sampleRate
+                        val mp4 = withContext(Dispatchers.IO) { RemoteClone.talkingHead(stNow.cloneEndpoint, stNow.cloneToken, face, "face.jpg", WavWriter.write(wav.toMono(rate), rate)) }
+                        presenterClips[sc.sceneOrder] = File(appContext.cacheDir, "presenter_${System.nanoTime()}.mp4").also { it.writeBytes(mp4) }
+                    } catch (e: Exception) { failed = e.message }
+                }
+                failed?.let { extra = extra + QualityCheckIssue(0, "Presenter", "Presenter not animated", "The talking-head server failed ($it); your photo is shown as a still circle.", "Enable /talking-head on your server, or ignore to keep the still photo.") }
+                if (presenterClips.isNotEmpty()) done.add("Animated presenter for ${presenterClips.size} scenes")
+            }
+        }
+        val file: File
+        if (_uiState.value.recordMode == "SCREEN") {
+            val r = recordScreens(tutorial, steps, finalScenes, audio, done)
+            file = r.file
+            extra = extra + r.issues + (lastReport?.let { rep ->
+                rep.codeOnly.map { (t, why) -> QualityCheckIssue(0, t, "Code and live site differ", why, "Update the deployed site or the code so they match, or remove the step.") } +
+                    rep.pageNotes.map { QualityCheckIssue(0, "Live page", "Live page note", it, "Check the URL or sign-in requirements.") }
+            } ?: emptyList())
+            finalScenes = repository.getScenesList(tutorial.id)
+        } else {
+            setStage("Rendering video", 0.50f, done)
+            file = renderVideo(finalScenes, audio, tutorial.id) { p -> setStage("Rendering video", 0.50f + 0.40f * p, done) }
+            done.add("Rendered ${file.name}")
+        }
+        setStage("Running quality check", 0.95f, done)
+        var report = repository.runQualityCheck(steps, finalScenes, tutorial, _uiState.value.extractedCodeFiles, loc, audioOk)
+        if (extra.isNotEmpty()) report = report.copy(isClean = false, totalChecks = report.totalChecks + 1, issues = report.issues + extra)
+        done.add("Quality check: ${report.passedChecks}/${report.totalChecks} passed")
+        repository.updateTutorial(tutorial.copy(status = "COMPLETED"))
+        _uiState.update {
+            it.copy(
+                scenesList = finalScenes,
+                selectedEditorScene = finalScenes.firstOrNull(),
+                currentSceneIndex = 0,
+                playbackSecond = 0f,
+                exportedVideoPath = file.absolutePath,
+                currentStep = WizardStep.VIDEO_PREVIEW_EDITOR,
+                recorderVisible = false,
+                generationProgress = it.generationProgress.copy(
+                    isRunning = false, isCompleted = true, progressPercent = 1f, completedStages = done.toList(), qualityReport = report
+                )
+            )
+        }
+    }
+
+    /** Records the live site while performing each step for real, narration aligned to the recorded timeline. */
+    private suspend fun recordScreens(
+        tutorial: TutorialPlanEntity, steps: List<TutorialStepEntity>, scenes: List<GeneratedSceneEntity>,
+        audio: Map<Int, WavData?>, done: MutableList<String>
+    ): ScreenResult {
+        val st = _uiState.value
+        val profile = DeviceProfile.fromId(st.deviceProfile)
+        val base = st.liveUrl.trim()
+        val host = try { java.net.URI(base).host ?: base } catch (_: Exception) { base }
+        // pair each scene with its step (scenes follow the checked steps in order)
+        val active = steps.filter { it.isChecked }
+        val pairs = ArrayList<Pair<TutorialStepEntity, GeneratedSceneEntity>>()
+        var from = 0
+        scenes.forEach { sc ->
+            val idx = (from until active.size).firstOrNull { active[it].title == sc.title } ?: return@forEach
+            pairs.add(active[idx] to sc); from = idx + 1
+        }
+        check(pairs.isNotEmpty()) { "No steps to record" }
+        val actions = pairs.map { (step, _) ->
+            val live = liveSpecs[step.id]
+            when {
+                live != null && step.actionType == "Input" -> PlannedAction.Type(live, StepPlanner.sampleValue(live))
+                live != null && step.actionType == "Click" -> PlannedAction.Click(live, st.allowRealClicks)
+                else -> StepPlanner.plan(step, base, st.allowRealClicks)
+            }
+        }
+
+        val recorder = acquireRecorder()
+        val startUrl = (actions.first() as? PlannedAction.Navigate)?.url ?: base
+        setStage("Opening $host", 0.52f, done)
+        if (!recorder.load(startUrl)) error("Couldn't open $startUrl (${recorder.lastError ?: "unknown error"})")
+
+        val dir = appContext.getExternalFilesDir(android.os.Environment.DIRECTORY_MOVIES) ?: appContext.filesDir
+        val out = File(dir, "codecast_${tutorial.id}_${System.currentTimeMillis()}.mp4")
+        val watermark = if (st.watermarkOption == "None") null else "CodeCast" + (st.selectedProject?.name?.let { " · $it" } ?: "")
+        val presenter = renderOptions(st, null).presenter
+        val session = RecordingSession(recorder, profile, out, host, watermark, tutorial.hasSubtitles, presenter)
+        session.totalSteps = pairs.size
+        session.start(viewModelScope)
+
+        var currentUrl = startUrl
+        val placements = ArrayList<Pair<Double, WavData>>()
+        val durations = HashMap<Int, Int>()
+        val issues = ArrayList<QualityCheckIssue>()
+        val skippedIds = HashSet<Int>()
+        try {
+            pairs.forEachIndexed { i, (step, scene) ->
+                val action = actions[i]
+                setStage("Recording step ${i + 1} of ${pairs.size}: ${step.title}", 0.55f + 0.35f * i / pairs.size, done)
+                session.step = i; session.subtitle = scene.subtitleText
+                var reason: String? = when (action) {
+                    is PlannedAction.Skip -> action.reason
+                    is PlannedAction.Type -> if (recorder.probe(action.spec)) null else "Couldn't find the '${action.spec.label}' field on the live page"
+                    is PlannedAction.Click -> if (recorder.probe(action.spec)) null else "Couldn't find the '${action.spec.text}' button on the live page"
+                    else -> null
+                }
+                if (reason == null) {
+                    val wav = audio[scene.sceneOrder]
+                    val t0 = session.elapsedSec
+                    val speech = wav?.seconds ?: ScenePlanner.spokenSeconds(scene.narrationScript, tutorial.speakingSpeed)
+                    if (wav != null) placements.add(t0 to wav)
+                    session.presenterClip = presenterClips[scene.sceneOrder]
+                    session.presenterClipStartUs = (t0 * 1_000_000).toLong()
+                    when (action) {
+                        is PlannedAction.Navigate -> if (action.url != currentUrl) {
+                            if (recorder.load(action.url)) currentUrl = action.url
+                            else { reason = "Couldn't open ${action.url} (${recorder.lastError ?: "error"})"; if (wav != null) placements.removeAt(placements.size - 1) }
+                        }
+                        else -> recorder.run(action)
+                    }
+                    if (reason == null) {
+                        val remaining = t0 + speech + 0.7 - session.elapsedSec
+                        if (remaining > 0) delay((remaining * 1000).toLong())
+                        durations[scene.sceneOrder] = Math.ceil(session.elapsedSec - t0).toInt().coerceAtLeast(2)
+                    }
+                }
+                if (reason != null) {
+                    skippedIds.add(scene.id)
+                    issues.add(QualityCheckIssue(i + 1, step.title, "Not Recorded", reason, "Check the live URL, or pick a step whose page has no id in its route."))
+                }
+            }
+            check(durations.isNotEmpty()) { "None of the steps could be recorded on the live site. " + issues.joinToString("; ") { it.description } }
+            delay(900)
+            val total = Math.ceil(session.elapsedSec).toInt() + 1
+            val rate = placements.firstOrNull()?.second?.sampleRate ?: 22050
+            val aac = if (placements.isEmpty()) null else withContext(Dispatchers.Default) {
+                val pcm = ShortArray(total * rate)
+                placements.forEach { (t, w) ->
+                    val m = w.toMono(rate); val off = (t * rate).toInt()
+                    val n = minOf(m.size, pcm.size - off)
+                    if (n > 0) System.arraycopy(m, 0, pcm, off, n)
+                }
+                encodeAacPcm(pcm, rate)
+            }
+            setStage("Finishing video", 0.92f, done)
+            val file = session.finish(aac)
+            done.add("Recorded ${durations.size} of ${pairs.size} steps on $host (${profile.label})")
+            // scenes: drop the ones that could not be recorded, use the real durations
+            var order = 0
+            scenes.forEach { sc ->
+                if (sc.id in skippedIds) repository.deleteScene(sc.id)
+                else if (sc.sceneOrder in durations) repository.updateScene(sc.copy(sceneOrder = ++order, durationSeconds = durations.getValue(sc.sceneOrder)))
+            }
+            return ScreenResult(file, issues)
+        } catch (t: Throwable) {
+            session.abort()
+            throw t
+        } finally {
+            releaseRecorder()
+        }
+    }
+
+    /** Re-records the live site using the current (possibly edited) scene text. */
+    private fun reRecord() {
+        val st = _uiState.value
+        val tutorial = st.activeTutorial ?: return
+        if (!LiveUrlFinder.isValid(st.liveUrl)) { _uiState.update { it.copy(notificationMessage = "Enter the live URL first.") }; return }
+        val steps = st.stepsList.map { it.copy(tutorialId = tutorial.id) }
+        generationJob?.cancel()
+        generationJob = viewModelScope.launch {
+            _uiState.update { it.copy(currentStep = WizardStep.GENERATE_VIDEO, generationProgress = GenerationProgressState(isRunning = true, phaseName = "Preparing to re-record", progressPercent = 0.05f)) }
+            try {
+                produce(tutorial, steps, _uiState.value.scenesList, lastLoc, mutableListOf())
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(recorderVisible = false, currentStep = WizardStep.VIDEO_PREVIEW_EDITOR,
+                    generationProgress = it.generationProgress.copy(isRunning = false), notificationMessage = "Recording failed: ${e.message}") }
+            }
+        }
+    }
+
     /** Re-renders the MP4 from the current (possibly edited) scenes. */
     fun exportVideo() {
+        if (_uiState.value.recordMode == "SCREEN") { reRecord(); return }
         val tutorial = _uiState.value.activeTutorial ?: return
         if (_uiState.value.exportProgress != null) return
         viewModelScope.launch {

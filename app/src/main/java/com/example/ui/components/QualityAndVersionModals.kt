@@ -39,7 +39,7 @@ fun QualityCheckReportDialog(
                 )
                 Text(
                     text = if (report.isClean) "Automated Quality Check: Passed" else "${report.issues.size} Quality Check Notice",
-                    fontSize = 15.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate100
                 )
@@ -51,8 +51,8 @@ fun QualityCheckReportDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "Automated verification against AST routes, runtime DOM controls, subtitle synchronization, and zero-hallucination compliance.",
-                    fontSize = 12.sp,
+                    text = "Checks that every scene points at real code in your project, that narration and subtitles exist and fit the timing, that protected terms are intact, and that audio was produced. The app itself is not executed.",
+                    fontSize = 13.sp,
                     color = Slate300
                 )
 
@@ -65,10 +65,10 @@ fun QualityCheckReportDialog(
                         modifier = Modifier.padding(10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "Passed Checks:", fontSize = 11.sp, color = Slate400)
+                        Text(text = "Passed Checks:", fontSize = 12.sp, color = Slate400)
                         Text(
                             text = "${report.passedChecks} / ${report.totalChecks} verification checks",
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = Emerald400
                         )
@@ -85,20 +85,20 @@ fun QualityCheckReportDialog(
                         ) {
                             Column(modifier = Modifier.padding(8.dp)) {
                                 Text(
-                                    text = "Step ${issue.stepOrder}: ${issue.issueType}",
-                                    fontSize = 11.sp,
+                                    text = (if (issue.stepOrder > 0) "Step ${issue.stepOrder}: " else "") + issue.issueType,
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Amber500
                                 )
                                 Text(
                                     text = issue.description,
-                                    fontSize = 11.sp,
+                                    fontSize = 12.sp,
                                     color = Slate200,
                                     modifier = Modifier.padding(top = 2.dp)
                                 )
                                 Text(
                                     text = "Fix: ${issue.suggestedFix}",
-                                    fontSize = 10.sp,
+                                    fontSize = 11.sp,
                                     color = Slate400,
                                     modifier = Modifier.padding(top = 2.dp)
                                 )
@@ -112,8 +112,8 @@ fun QualityCheckReportDialog(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "All screens, routes, and controls fully verified against codebase runtime. 0 hallucinated UI elements.",
-                            fontSize = 11.sp,
+                            text = "Every scene is backed by code found in your project, and narration, timing and terms check out.",
+                            fontSize = 12.sp,
                             color = Emerald400,
                             modifier = Modifier.padding(8.dp)
                         )
@@ -124,10 +124,10 @@ fun QualityCheckReportDialog(
         confirmButton = {
             if (report.issues.isNotEmpty()) {
                 Button(
-                    onClick = onFixAutomatically,
+                    onClick = onDismiss,
                     colors = ButtonDefaults.buttonColors(containerColor = Indigo600)
                 ) {
-                    Text("Fix Automatically")
+                    Text("Close")
                 }
             } else {
                 Button(
@@ -135,13 +135,6 @@ fun QualityCheckReportDialog(
                     colors = ButtonDefaults.buttonColors(containerColor = Indigo600)
                 ) {
                     Text("Looks Good")
-                }
-            }
-        },
-        dismissButton = {
-            if (report.issues.isNotEmpty()) {
-                TextButton(onClick = onContinueAnyway) {
-                    Text("Continue Anyway", color = Slate400)
                 }
             }
         },
@@ -170,7 +163,7 @@ fun ProjectVersionDialog(
                 )
                 Text(
                     text = "Codebase Versioning & Impact Analysis",
-                    fontSize = 15.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate100
                 )
@@ -183,7 +176,7 @@ fun ProjectVersionDialog(
             ) {
                 Text(
                     text = "When new code is pushed, CodeCast tracks AST diffs to identify which tutorials may become outdated.",
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     color = Slate300
                 )
 
@@ -205,7 +198,7 @@ fun ProjectVersionDialog(
                             ) {
                                 Text(
                                     text = "Version ${ver.versionTag}",
-                                    fontSize = 12.sp,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (ver.isLatest) Amber500 else Slate200
                                 )
@@ -215,8 +208,8 @@ fun ProjectVersionDialog(
                                         shape = RoundedCornerShape(3.dp)
                                     ) {
                                         Text(
-                                            text = "1 AFFECTED TUTORIAL",
-                                            fontSize = 9.sp,
+                                            text = "1 affected tutorial",
+                                            fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = Amber500,
                                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
@@ -226,7 +219,7 @@ fun ProjectVersionDialog(
                             }
                             Text(
                                 text = ver.changelog,
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 color = Slate400,
                                 modifier = Modifier.padding(top = 4.dp)
                             )

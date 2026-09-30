@@ -53,13 +53,7 @@ object ScenePlanner {
             val natural = speechSeconds(n) ?: spokenSeconds(n, tutorial.speakingSpeed)
             (natural + 1.0).coerceAtLeast(MIN_SCENE_SECONDS.toDouble())
         }
-        val range = rangeFor(tutorial.duration)
-        val total = seconds.sum()
-        // Fit into the requested range without cutting speech: only pad up, or shrink pauses down to speech length.
-        if (total < range.minSec) {
-            val extra = (range.minSec - total) / seconds.size
-            seconds = seconds.map { it + extra }
-        }
+        // Scenes last as long as their narration (plus a short pause). They are never padded with silence.
         return active.mapIndexed { i, s ->
             val hl = s.codeFilePath.isNotEmpty()
             GeneratedSceneEntity(

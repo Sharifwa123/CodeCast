@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -13,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -24,21 +26,15 @@ import com.example.ui.viewmodel.GenerationProgressState
 @Composable
 fun GenerationPipelineScreen(
     progressState: GenerationProgressState,
-    onViewResultClick: () -> Unit
+    onViewResultClick: () -> Unit,
+    showRecorder: Boolean = false,
+    recorderAspect: Float = 0.5f,
+    onWebViewReady: (android.webkit.WebView) -> Unit = {}
 ) {
-    val stages = listOf(
-        "Analyzing workflow and call trees",
-        "Preparing verified application screens",
-        "Generating neural voice narration",
-        "Synthesizing localized subtitles",
-        "Assembling camera pans & click ripples",
-        "Rendering high-definition video track",
-        "Executing automated quality check"
-    )
-
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(androidx.compose.foundation.rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -81,6 +77,25 @@ fun GenerationPipelineScreen(
                     }
                 }
 
+                if (showRecorder) {
+                    Text("Recording the live app. Keep CodeCast open until it finishes.", fontSize = 12.sp, color = Cyan300)
+                    androidx.compose.foundation.layout.BoxWithConstraints(
+                        modifier = Modifier.fillMaxWidth().height(330.dp).clip(RoundedCornerShape(8.dp)).background(Color.White).testTag("recorder_host")
+                    ) {
+                        val fullW = maxWidth
+                        val fullH = maxWidth * recorderAspect
+                        val scale = minOf(1f, 330.dp.value / fullH.value)
+                        androidx.compose.ui.viewinterop.AndroidView(
+                            factory = { ctx -> android.webkit.WebView(ctx).also(onWebViewReady) },
+                            onRelease = { it.destroy() },
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .requiredSize(fullW, fullH)
+                                .graphicsLayer(scaleX = scale, scaleY = scale, transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f))
+                        )
+                    }
+                }
+
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = if (progressState.isCompleted) "Video Generation Complete!" else "Rendering Video Tutorial",
@@ -90,7 +105,7 @@ fun GenerationPipelineScreen(
                     )
                     Text(
                         text = progressState.phaseName,
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         color = if (progressState.isCompleted) Emerald400 else Cyan300,
                         modifier = Modifier.padding(top = 4.dp)
                     )
@@ -114,8 +129,9 @@ fun GenerationPipelineScreen(
                         .padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    stages.forEach { stage ->
-                        val isDone = progressState.completedStages.contains(stage) || progressState.isCompleted
+                    val running = if (!progressState.isCompleted && progressState.isRunning) listOf(progressState.phaseName) else emptyList()
+                    (progressState.completedStages + running).forEach { stage ->
+                        val isDone = stage in progressState.completedStages
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -142,7 +158,7 @@ fun GenerationPipelineScreen(
                                 }
                                 Text(
                                     text = stage,
-                                    fontSize = 12.sp,
+                                    fontSize = 13.sp,
                                     color = if (isDone) Slate200 else Slate500,
                                     fontWeight = if (isDone) FontWeight.Medium else FontWeight.Normal
                                 )
@@ -151,7 +167,7 @@ fun GenerationPipelineScreen(
                             if (isDone) {
                                 Text(
                                     text = "✓",
-                                    fontSize = 12.sp,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Emerald400
                                 )
